@@ -32,11 +32,13 @@ class crossovered_budget(models.Model):
 
         for k, v in groups.items():
             months = {}
+            t = 0
             for j in v:
                 if j != 0:
                    months[j] = (groups[k][j], 1) # value, parts
+                   t += groups[k][j]
             if groups[k].has_key(0):
-                months[0] = (groups[k][0], 13-len(groups[k])) # include 0 itself
+                months[0] = (groups[k][0] - t, 13-len(groups[k])) # include 0 itself
         
             print '***', months
             # create budget lines
