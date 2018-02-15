@@ -48,9 +48,11 @@ class crossovered_budget(models.Model):
                 if months.has_key(month):
                     line = months[month][0]
                     div = months[month][1]
+                    planned_amount = line.planned_amount
                 else:
                     line = months[0][0]
                     div = months[0][1]
+                    planned_amount = (line.planned_amount - t) / div
                 # TODO: dynamic year
                 first_day = 1
                 last_day = calendar.monthrange(2018, month)[1]
@@ -61,7 +63,7 @@ class crossovered_budget(models.Model):
                     'general_budget_id': line.general_budget_id.id,
                     'date_from': date(2018, month, first_day),
                     'date_to':  date(2018, month, last_day),
-                    'planned_amount': (line.planned_amount - t) / div,
+                    'planned_amount': planned_amount
                 }
                 self.env['crossovered.budget.lines'].create(values)
 
