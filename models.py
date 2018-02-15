@@ -30,6 +30,7 @@ class crossovered_budget(models.Model):
             elif not groups[key].has_key(key2):
                 groups[key][key2] = line 
 
+        # TODO: better management for periods
         for k, v in groups.items():
             months = {}
             t = 0
@@ -38,7 +39,7 @@ class crossovered_budget(models.Model):
                    months[j] = (groups[k][j], 1) # value, parts
                    t += groups[k][j].planned_amount
             if groups[k].has_key(0):
-                months[0] = (groups[k][0] - t, 13-len(groups[k])) # include 0 itself
+                months[0] = (groups[k][0], 13-len(groups[k])) # include 0 itself
         
             print '***', months
             # create budget lines
@@ -60,7 +61,7 @@ class crossovered_budget(models.Model):
                     'general_budget_id': line.general_budget_id.id,
                     'date_from': date(2018, month, first_day),
                     'date_to':  date(2018, month, last_day),
-                    'planned_amount': line.planned_amount / div,
+                    'planned_amount': (line.planned_amount - t) / div,
                 }
                 self.env['crossovered.budget.lines'].create(values)
 
