@@ -36,7 +36,7 @@ class crossovered_budget(models.Model):
             for j in v:
                 if j != 0:
                    months[j] = (groups[k][j], 1) # value, parts
-                   t += groups[k][j]
+                   t += groups[k][j].planned_amount
             if groups[k].has_key(0):
                 months[0] = (groups[k][0] - t, 13-len(groups[k])) # include 0 itself
         
