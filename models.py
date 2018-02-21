@@ -121,7 +121,6 @@ class crossovered_budget(models.Model):
     @api.multi
     def write(self, values):
         # TODO: only one overlap by period  
-        print '>>>> write', values
         res_id = super(crossovered_budget, self).write(values)
         self.manage_crossovered_budget_lines()
         return res_id
@@ -131,7 +130,41 @@ class crossovered_budget_lines(models.Model):
     _inherit = 'crossovered.budget.lines'
 
     budget_manager_line_id = fields.Many2one('budget_manager.line')
+    segment_id = fields.Many2one(related='crossovered_budget_id.segment_id', store=True)
+    segment = fields.Char(related='crossovered_budget_id.segment', store=True)
 
+    def _prac_amt(self, cr, uid, ids, context=None):
+        # TODO: remove old segment dependency
+        res = {}
+        result = 0.0
+        if context is None:
+            context = {}
+        account_obj = self.pool.get('account.account')
+        for line in self.browse(cr, uid, ids, context=context):
+            acc_ids = [x.id for x in line.general_budget_id.account_ids]
+            if not acc_ids:
+                raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
+            acc_ids = account_obj._get_children_and_consol(cr, uid, acc_ids, context=context)
+            date_to = line.date_to
+            date_from = line.date_from
+            segment_id = line.segment_id.id
+            if line.analytic_account_id.id:
+                sql = """
+                SELECT SUM(amount) 
+                FROM account_analytic_line as a
+                LEFT JOIN account_move_line as m ON m.id = a.move_id
+                WHERE a.account_id = %s
+                    AND (a.date between to_date(%s, 'yyyy-mm-dd')
+                        AND to_date(%s, 'yyyy-mm-dd')) 
+                    AND a.general_account_id = ANY(%s)
+                    AND m.segment_id = %s 
+                """
+                cr.execute(sql, (line.analytic_account_id.id, date_from, date_to,acc_ids, segment_id))
+                result = cr.fetchall()[0]
+            if result is None:
+                result = 0.00
+            res[line.id] = result[0]
+        return res
 
 class budget_manager_line(models.Model):
     _name = 'budget_manager.line'
