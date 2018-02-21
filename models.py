@@ -71,6 +71,7 @@ class crossovered_budget(models.Model):
                 groups[key][key2] = line 
 
         # TODO: better management for periods
+        last_month = 0
         for k, v in groups.items():
             months = {}
             t = 0
@@ -81,9 +82,11 @@ class crossovered_budget(models.Model):
                    t += groups[k][j].planned_amount
                    m += 1
             if groups[k].has_key(0):
-                months[0] = groups[k][0] # include 0 itself
+                line = groups[k][0]
+                months[0] =  line# include 0 itself
+                last_month = int(line.date_to.split('-')[1])
         
-            last_month = sorted(months.keys(), reverse=True)[0]
+            print last_month, t, m
             # create budget lines
             for i in range(last_month):
                 month = i + 1
