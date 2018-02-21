@@ -19,11 +19,11 @@
     'version': '8.0.1.0',
 
     # any module necessary for this one to work correctly
-    'depends': ['base', 'account', 'account_budget'],
+    'depends': ['base', 'account', 'account_budget', 'analytic_segment'],
 
     # always loaded
     'data': [
-        # 'security/ir.model.access.csv',
+        'security/ir.model.access.csv',
         'templates.xml',
     ],
     # only loaded in demonstration mode
