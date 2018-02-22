@@ -158,7 +158,7 @@ class crossovered_budget_lines(models.Model):
                     AND (a.date between to_date(%s, 'yyyy-mm-dd')
                         AND to_date(%s, 'yyyy-mm-dd')) 
                     AND a.general_account_id = ANY(%s)
-                    AND l.segment_id = %s 
+                    AND m.segment_id = %s 
                 """
                 cr.execute(sql, (line.analytic_account_id.id, date_from, date_to,acc_ids, segment_id))
                 result = cr.fetchall()[0]
