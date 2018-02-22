@@ -152,12 +152,13 @@ class crossovered_budget_lines(models.Model):
                 sql = """
                 SELECT SUM(amount) 
                 FROM account_analytic_line as a
-                LEFT JOIN account_move_line as m ON m.id = a.move_id
+                LEFT JOIN account_move_line as l ON l.id = a.move_id
+                LEFT JOIN account_move as m ON m.id = l.move_id
                 WHERE a.account_id = %s
                     AND (a.date between to_date(%s, 'yyyy-mm-dd')
                         AND to_date(%s, 'yyyy-mm-dd')) 
                     AND a.general_account_id = ANY(%s)
-                    AND m.segment_id = %s 
+                    AND l.segment_id = %s 
                 """
                 cr.execute(sql, (line.analytic_account_id.id, date_from, date_to,acc_ids, segment_id))
                 result = cr.fetchall()[0]
