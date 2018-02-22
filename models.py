@@ -44,7 +44,7 @@ class crossovered_budget(models.Model):
 
 
     budget_manager_line_ids = fields.One2many('budget_manager.line', 'crossovered_budget_id')
-    segment_id = fields.Many2one('analytic_segment.segment')
+    segment_id = fields.Many2one('analytic_segment.segment', required=True)
     segment = fields.Char(related='segment_id.segment', readonly=True)
     segment_user_id = fields.Many2one('res.users', compute='_segment_user_id', search=_search_segment_user)
 
