@@ -152,20 +152,24 @@ class crossovered_budget_lines(models.Model):
             segment_tmpl_ids = []
             segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
             segment_ids = self.pool.get('analytic_segment.segment').search(cr, uid, [('segment_tmpl_id', 'in', segment_tmpl_ids)])
-
+            #for i in segment_id.segment_tmpl_id.get_direct_childs():
+            #    print i
             if line.analytic_account_id.id:
                 SQL = """
                 SELECT SUM(amount) 
                 FROM account_analytic_line as a
                 LEFT JOIN account_move_line as l ON l.id = a.move_id
                 LEFT JOIN account_move as m ON m.id = l.move_id
-                WHERE a.account_id = %s
+                WHERE a.account_id = ANY(%s)
                     AND (a.date between to_date(%s, 'yyyy-mm-dd')
                         AND to_date(%s, 'yyyy-mm-dd')) 
                     AND a.general_account_id = ANY(%s)
                     AND m.segment_id = ANY(%s) 
                 """
-                cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to,acc_ids, segment_ids))
+                # TODO: add more lower leves (childs of childs)
+                analytic_ids = self.pool.get('account.analytic.account').search(cr, uid, [('parent_id', '=', line.analytic_account_id.id)])
+                analytic_ids += [line.analytic_account_id.id]
+                cr.execute(SQL, (analytic_ids, date_from, date_to, acc_ids, segment_ids))
                 result = cr.fetchall()[0]
             if result is None:
                 result = 0.00
