@@ -50,12 +50,18 @@ class crossovered_budget(models.Model):
 
 
     def manage_crossovered_budget_lines(self):
-        # remove old lines
+        # TODO: use datetime manipulation functions
+        # remove old budget lines
         for line in self.crossovered_budget_line:
             line.unlink()
-        
         # recreate budget lines
         groups = {}
+        # get year from first line
+        # TODO: add fiscal year or so to general_budget_id
+        if self.budget_manager_line_ids:
+            year = int(self.budget_manager_line_ids[0].date_from.split('-')[0])
+        else:
+            year = None
         for line in self.budget_manager_line_ids:
             key = (line.analytic_account_id.id, line.general_budget_id.id)
             month_from = int(line.date_from.split('-')[1])
@@ -86,7 +92,6 @@ class crossovered_budget(models.Model):
                 months[0] =  line# include 0 itself
                 last_month = int(line.date_to.split('-')[1])
         
-            print last_month, t, m
             # create budget lines
             for i in range(last_month):
                 month = i + 1
@@ -98,14 +103,14 @@ class crossovered_budget(models.Model):
                     planned_amount = (line.planned_amount - t) / (last_month - m)
                 # TODO: dynamic year
                 first_day = 1
-                last_day = calendar.monthrange(2018, month)[1]
+                last_day = calendar.monthrange(year, month)[1]
                 values = {
                     'crossovered_budget_id': self.id,
                     'budget_manager_line_id': line.id,
                     'analytic_account_id': line.analytic_account_id.id,
                     'general_budget_id': line.general_budget_id.id,
-                    'date_from': date(2018, month, first_day),
-                    'date_to':  date(2018, month, last_day),
+                    'date_from': date(year, month, first_day),
+                    'date_to':  date(year, month, last_day),
                     'planned_amount': planned_amount
                 }
                 self.env['crossovered.budget.lines'].create(values)
