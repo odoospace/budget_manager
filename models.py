@@ -55,6 +55,15 @@ class crossovered_budget(models.Model):
         for line in self.crossovered_budget_line:
             line.unlink()
         # recreate budget lines
+        # groups = {
+        #     (line.analytic_account_id.id, line.general_budget_id.id): {
+        #         'main_line': ,
+        #         'month_from': ,
+        #         'month_to':,
+        #         'total_amount_acc': ,
+        #          '1', '2', '3'...
+        #     }
+        # }
         groups = {}
         # get year from first line
         # TODO: add fiscal year or so to general_budget_id
@@ -64,43 +73,34 @@ class crossovered_budget(models.Model):
             year = None
         for line in self.budget_manager_line_ids:
             key = (line.analytic_account_id.id, line.general_budget_id.id)
+            # start with an empty dir 
+            if not groups.has_key(key):
+                groups[key] = {
+                    'total_amount_acc': 0,
+                    'total_months_acc': 0
+                }
             month_from = int(line.date_from.split('-')[1])
             month_to = int(line.date_to.split('-')[1])
             # TODO: add periods longer 1 month
             if month_from == month_to:
-                key2 = month_from
+                groups[key][month_from] = line
+                groups[key]['total_amount_acc'] += line.planned_amount
+                groups[key]['total_months_acc'] += 1
             else:
-                key2 = 0
-            if not groups.has_key(key):
-                groups[key] = {key2: line}
-            elif not groups[key].has_key(key2):
-                groups[key][key2] = line 
+                groups[key]['main_line'] = line
+                groups[key]['month_from'] = month_from
+                groups[key]['month_to'] = month_to
 
-        # TODO: better management for periods
-        last_month = 0
         for k, v in groups.items():
-            months = {}
-            t = 0
-            m = 0
-            for j in v:
-                if j != 0:
-                   months[j] = groups[k][j] # value, parts
-                   t += groups[k][j].planned_amount
-                   m += 1
-            if groups[k].has_key(0):
-                line = groups[k][0]
-                months[0] =  line# include 0 itself
-                last_month = int(line.date_to.split('-')[1])
-        
             # create budget lines
-            for i in range(last_month):
-                month = i + 1
-                if months.has_key(month):
-                    line = months[month]
+            months = v['month_to'] - v['month_from'] + 1
+            for month in range(v['month_from'], v['month_to']+1):
+                if v.has_key(month):
+                    line = v[month]
                     planned_amount = line.planned_amount
                 else:
-                    line = months[0]
-                    planned_amount = (line.planned_amount - t) / (last_month - m)
+                    line = v['main_line']
+                    planned_amount = (line.planned_amount - v['total_amount_acc']) / (months - v['total_months_acc'])
                 # TODO: dynamic year
                 first_day = 1
                 last_day = calendar.monthrange(year, month)[1]
