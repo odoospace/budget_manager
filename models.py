@@ -108,7 +108,7 @@ class crossovered_budget(models.Model):
                 groups[key]['total_amount_acc'] += line.planned_amount
                 groups[key]['total_months_acc'] += 1
                 # only one month???
-                if len(self.budget_manager_line_ids) == 1:
+                if not groups[key].has_key('main_line'):
                     groups[key]['main_line'] = line
                     groups[key]['month_from'] = month_from
                     groups[key]['month_to'] = month_to # are equal :-)
@@ -118,7 +118,7 @@ class crossovered_budget(models.Model):
                 groups[key]['month_from'] = month_from
                 groups[key]['month_to'] = month_to
 
-        for k, v in groups.items():
+        for v in groups.values():
             # create budget lines
             months = v['month_to'] - v['month_from'] + 1
             for month in range(v['month_from'], v['month_to']+1):
