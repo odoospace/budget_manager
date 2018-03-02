@@ -7,6 +7,23 @@ from datetime import date, datetime
 class crossovered_budget(models.Model):
     _inherit = 'crossovered.budget'
 
+    def _domain_segment(self):
+        # TODO: refactor these 3 functions!!!!
+        if self.env.user == 0:
+            # no restrictions
+            domain = []
+        else:
+            segment_tmpl_ids = []
+            segment_ids = self.env.user.segment_ids
+            for s in segment_ids:
+                segment_tmpl_ids += s.segment_id.segment_tmpl_id.get_childs_ids()
+            virtual_segments = self.env['analytic_segment.template'].search([('virtual', '=', True)])
+            segment_tmpl_ids += [i.id for i in virtual_segments]
+
+            segment_ids = self.env['analytic_segment.segment'].search([('segment_tmpl_id', 'in', segment_tmpl_ids)])
+            domain = [('id', 'in', [i.id for i in segment_ids])]
+        return domain
+
     def _search_segment_user(self, operator, value):
         user = self.env['res.users'].browse(value)
         segment_tmpl_ids = []
@@ -44,7 +61,8 @@ class crossovered_budget(models.Model):
 
 
     budget_manager_line_ids = fields.One2many('budget_manager.line', 'crossovered_budget_id')
-    segment_id = fields.Many2one('analytic_segment.segment', required=True)
+    segment_id = fields.Many2one('analytic_segment.segment', required=True,
+        domain=_domain_segment)
     segment = fields.Char(related='segment_id.segment', readonly=True)
     segment_user_id = fields.Many2one('res.users', compute='_segment_user_id', search=_search_segment_user)
 
@@ -86,7 +104,13 @@ class crossovered_budget(models.Model):
                 groups[key][month_from] = line
                 groups[key]['total_amount_acc'] += line.planned_amount
                 groups[key]['total_months_acc'] += 1
+                # only one month???
+                if len(self.budget_manager_line_ids) == 1:
+                    groups[key]['main_line'] = line
+                    groups[key]['month_from'] = month_from
+                    groups[key]['month_to'] = month_to # are equal :-)
             else:
+                # TODO: check for two or more months lines...
                 groups[key]['main_line'] = line
                 groups[key]['month_from'] = month_from
                 groups[key]['month_to'] = month_to
