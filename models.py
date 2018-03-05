@@ -9,7 +9,7 @@ class crossovered_budget(models.Model):
 
     def _domain_segment(self):
         # TODO: refactor these 3 functions!!!!
-        if self.env.user == 0:
+        if self.env.user.id == 1:
             # no restrictions
             domain = []
         else:
