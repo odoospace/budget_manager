@@ -98,36 +98,34 @@ class crossovered_budget(models.Model):
             if not groups.has_key(key):
                 groups[key] = {
                     'total_amount_acc': 0,
-                    'total_months_acc': 0
+                    'total_months_acc': 0,
+                    'main_line': None,
+                    'months': []
                 }
             month_from = int(line.date_from.split('-')[1])
             month_to = int(line.date_to.split('-')[1])
-            # TODO: add periods longer 1 month
+            # TODO: add more periods longer 1 month
             if month_from == month_to:
                 groups[key][month_from] = line
                 groups[key]['total_amount_acc'] += line.planned_amount
                 groups[key]['total_months_acc'] += 1
-                # only one month???
-                if not groups[key].has_key('main_line'):
-                    groups[key]['main_line'] = line
-                    groups[key]['month_from'] = month_from
-                    groups[key]['month_to'] = month_to # are equal :-)
+                groups[key]['months'] = list(set(groups[key]['months']+[month_from]))
+
             else:
                 # TODO: check for two or more months lines...
                 groups[key]['main_line'] = line
-                groups[key]['month_from'] = month_from
-                groups[key]['month_to'] = month_to
+                groups[key]['months'] = list(set(groups[key]['months']+range(month_from, month_to+1)))
 
         for v in groups.values():
             # create budget lines
-            months = v['month_to'] - v['month_from'] + 1
-            for month in range(v['month_from'], v['month_to']+1):
+            m = max(v['months']) - min(v['months']) + 1
+            for month in v['months']:
                 if v.has_key(month):
                     line = v[month]
                     planned_amount = line.planned_amount
                 else:
                     line = v['main_line']
-                    planned_amount = (line.planned_amount - v['total_amount_acc']) / (months - v['total_months_acc'])
+                    planned_amount = (line.planned_amount - v['total_amount_acc']) / (m - v['total_months_acc'])
                 # TODO: dynamic year
                 first_day = 1
                 last_day = calendar.monthrange(year, month)[1]
