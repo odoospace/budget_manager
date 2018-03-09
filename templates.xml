@@ -34,5 +34,18 @@
             </xpath>
         </field>
     </record>
+
+    <!-- BEGIN INHERIT account.analytic.account form  -->
+    <record id="view_account_analytic_account_budget_form" model="ir.ui.view">
+        <field name="name">account.analytic.account.budget</field>
+        <field name="model">account.analytic.account</field>
+        <field name="inherit_id" ref="analytic.view_account_analytic_account_form"/>
+        <field name="arch" type="xml">
+            <field name="manager_id" position="after">
+                <field name="group"/>
+            </field>
+        </field>
+    </record>
+    <!-- END INHERIT account.analytic.account form -->
     </data>
 </openerp>
