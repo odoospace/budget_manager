@@ -8,5 +8,6 @@ class account_analytic_account(models.Model):
         ('A', 'Gastos Secretarias'),
         ('B', 'Gastos Areas y Equipos'),
         ('C', 'Gastos Generales'),
-        ('D', 'Ingresos')
+        ('D', 'Ingresos'),
+        ('E', 'Otros')
     ])
