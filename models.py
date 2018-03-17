@@ -209,8 +209,28 @@ class crossovered_budget_lines(models.Model):
 class budget_manager_line(models.Model):
     _name = 'budget_manager.line'
     _description = "Budget Line Managed"
+
+    @api.onchange('analytic_account_id')
+    def _domain_budget_line(self):
+        segment_tmpl_ids = []
+        res = {} 
+        budget = self.crossovered_budget_id
+        domain = [('state', '=', 'open'), ('company_id', '=', budget.company_id.id)]
+        segment_tmpl_ids += [budget.segment_id.segment_tmpl_id.id]
+        segment_tmpl_ids += budget.segment_id.segment_tmpl_id.get_childs_ids()
+        virtual_segments = self.env['analytic_segment.template'].search([('virtual', '=', True)])
+        segment_tmpl_ids += [i.id for i in virtual_segments]
+        segment_ids = self.env['analytic_segment.segment'].search([('segment_tmpl_id', 'in', segment_tmpl_ids)])
+        domain += [('segment_id', 'in', [i.id for i in segment_ids])]
+        res['domain'] = {
+            'analytic_account_id': domain
+        }
+        return res
     
-    crossovered_budget_id = fields.Many2one('crossovered.budget', 'Budget', ondelete='cascade', required=True)
+    def _default_crossovered_budget_id(self):
+        return self.env.context.get('budget_id', False)
+
+    crossovered_budget_id = fields.Many2one('crossovered.budget', 'Budget', default=_default_crossovered_budget_id, ondelete='cascade', required=True)
     crossovered_budget_line_ids = fields.One2many('crossovered.budget.lines', 'budget_manager_line_id')
     analytic_account_id = fields.Many2one('account.analytic.account', 'Analytic Account')
     general_budget_id = fields.Many2one('account.budget.post', 'Budgetary Position', required=True)
