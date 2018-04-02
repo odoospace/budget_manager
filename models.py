@@ -7,6 +7,25 @@ from datetime import date, datetime
 class crossovered_budget(models.Model):
     _inherit = 'crossovered.budget'
 
+    @api.multi
+    def export_xlsxwizard(self, context=None):
+        # https://stackoverflow.com/questions/30180535/odoo-8-launch-a-ir-actions-act-window-from-a-python-method
+        self.ensure_one()
+        if context is None: context = {}
+        context['default_budget_id'] = self.id # !important
+        res = {
+            'name':"Export to Excel",
+            'view_mode': 'form',
+            'view_type': 'form',
+            'res_model': 'budget_manager.xlsxwizard',
+            'type': 'ir.actions.act_window',
+            'nodestroy': True,
+            'target': 'new',
+            'domain': '[]',
+            'context': context
+        }
+        return res
+
     def _domain_segment(self):
         # TODO: refactor these 3 functions!!!!
         if self.env.user.id == 1:

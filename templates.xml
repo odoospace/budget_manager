@@ -1,11 +1,46 @@
 <openerp>
     <data>
+    <!-- BEGIN Wizard -->
+    <record model="ir.ui.view" id="budget_manager_xlsxwizard_form">
+        <field name="name">budget_manager.xlsxwizard</field>
+        <field name="model">budget_manager.xlsxwizard</field>
+        <field name="arch" type="xml">
+            <form string="Export budget to Excel">
+                <group>
+                    <field name="budget_id" invisible="1"/>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                </group>
+                <footer>
+                    <button name="run_export_xlsx" string="Export" type="object" class="oe_highlight"/>
+                    <button string="Cancel" class="oe_link" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!--
+    <record id="open_budget_manager_xlsxwizard_action" model="ir.actions.act_window">
+        <field name="name">Export to XLSX</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">budget_manager.xlsxwizard</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    -->
+    <!-- END Wizard -->
+    
+    <!-- BEGIN Budget inherit -->
     <record model="ir.ui.view" id="crossovered_budget_manager_view_form">
         <field name="name">crossovered.budget.manager.view.form</field>
         <field name="model">crossovered.budget</field>
         <field name="priority">6</field>
         <field name="inherit_id" ref="account_budget.crossovered_budget_view_form"/>
         <field name="arch" type="xml">
+            <xpath expr="//button[@name='confirm']" position="after">
+                <button name="export_xlsxwizard" type="object" string="Export XLSX"/>
+            </xpath>
             <xpath expr="//field[@name='company_id']" position="after"> 
                <field name="segment_id"/>
                <field name="segment"/>
@@ -34,10 +69,12 @@
             </xpath>
         </field>
     </record>
+    <!-- END Budget inherit -->
+    
 
     <!-- BEGIN INHERIT account.analytic.account form  -->
     <record id="view_account_analytic_account_budget_form" model="ir.ui.view">
-        <field name="name">account.analytic.account.budget</field>
+        <field name="name">account.analytic.account</field>
         <field name="model">account.analytic.account</field>
         <field name="inherit_id" ref="analytic.view_account_analytic_account_form"/>
         <field name="arch" type="xml">
@@ -47,5 +84,7 @@
         </field>
     </record>
     <!-- END INHERIT account.analytic.account form -->
+
+    
     </data>
 </openerp>

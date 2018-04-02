@@ -12,3 +12,14 @@ class account_analytic_account(models.Model):
         ('D', 'Ingresos'),
         ('E', 'Otros')
     ])
+    
+    def first_parent(self, parent=None):
+        # is parent empty?
+        if not parent:
+            obj = self
+        else:
+            obj = parent
+        if not obj.parent_id:
+            return obj
+        else:
+            return self.first_parent(obj.parent_id)
