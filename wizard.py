@@ -23,39 +23,112 @@ class XLSXWizard(models.TransientModel):
     budget_id = fields.Many2one('crossovered.budget', string="Budget", required=True)
     date_from = fields.Date(required=True)
     date_to = fields.Date(required=True)
+
     
     @api.one
     def run_export_xlsx(self):
-        # first pass: group by account type and first parent
+        
+        # prepare groups
         groups = {}
         X = []
-        Y = {}
+        # get data from budget lines
         for line in self.budget_id.crossovered_budget_line:
             # check dates
             if line.date_from >= self.date_from and line.date_to <= self.date_to:
                 group = G[line.analytic_account_id.group]
                 first_parent = line.analytic_account_id.first_parent().name
-                name = line.analytic_account_id.name
-                # X/Y Matrix
-                # init Y group
-                if not Y.has_key(group):
-                    Y[group] = []
-                # append accounts at Y
-                if not name in Y[group]:
-                    Y[group].append(name)
+                account_name = line.analytic_account_id.name
+                # Matrix
                 # append parents at X
                 if first_parent not in X:
                     X.append(first_parent)
                 # Data
                 if not groups.has_key(group):
                     groups[group] = {}
-                if not groups[group].has_key(name):
-                    groups[group][name] = {}
-                if not groups[group][name].has_key(first_parent):
-                    groups[group][name][first_parent] = []
+                if not groups[group].has_key(account_name):
+                    groups[group][account_name] = {}
+                if not groups[group][account_name].has_key(first_parent):
+                    groups[group][account_name][first_parent] = []
                     
-                groups[group][name][first_parent].append(line)
+                groups[group][account_name][first_parent].append((1,line))
         
+        
+        # get data from analytic to prepare virtual groups
+        anaylitic_lines = [i.id for i in self.env['account.analytic.line'].search([
+            ('date', '>=', self.date_from),
+            ('date', '<=', self.date_to),
+            ('company_id', '=', self.budget_id.company_id.id),
+            ('segment_id', '=', self.budget_id.segment_id.id)
+        ])]
+        
+        account_obj = self.pool.get('account.account')
+        for line in self.budget_id.crossovered_budget_line:
+            acc_ids = [x.id for x in line.general_budget_id.account_ids]
+            if not acc_ids:
+                raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
+            acc_ids = account_obj._get_children_and_consol(self._cr, self._uid, acc_ids)
+            date_to = line.date_to
+            date_from = line.date_from
+            segment_id = line.segment_id
+            # get lower segments (one level)
+            #segment_tmpl_ids = []
+            #segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
+            #segment_ids = [i.id for i in self.env['analytic_segment.segment'].search([('segment_tmpl_id', 'in', segment_tmpl_ids)])]
+            segment_ids = [segment_id.id]
+        
+            if line.analytic_account_id.id:
+                SQL = """
+                SELECT a.id, a.amount
+                FROM ((account_analytic_line as a
+                INNER JOIN account_move_line as l ON l.id = a.move_id)
+                INNER JOIN account_move as m ON m.id = l.move_id)
+                WHERE a.account_id = %s
+                    AND (a.date between to_date(%s, 'yyyy-mm-dd')
+                        AND to_date(%s, 'yyyy-mm-dd')) 
+                    AND a.general_account_id = ANY(%s)
+                    AND m.segment_id = ANY(%s)
+                """ 
+                #_z = line.analytic_account_id.id, date_from, date_to, list(acc_ids), list(segment_ids)
+                self.env.cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids))
+                result = self.env.cr.fetchall()
+                #print '>>>', result
+                for res in result:
+                    print res
+                    if res[0] in anaylitic_lines:
+                        #print 'removed!!!'
+                        anaylitic_lines.remove(res[0])
+                
+        #print len(anaylitic_lines)
+        lines = self.env['account.analytic.line'].search([
+            ('id', 'in', anaylitic_lines)
+        ])
+        for l in lines:
+            #print '%s,"%s","%s",%s,"%s",%s,"%s","%s","%s"' % (
+            #    l.id, l.date, l.name, l.amount, l.account_id.name,
+            #    l.account_id.level, 
+            #    l.move_id.name, l.account_id.group,
+            #    l.account_id.first_parent().name
+            #)
+            level = l.account_id.level
+            if level <= 2:
+                group = G[l.account_id.group]
+                first_parent = l.account_id.first_parent().name
+                account_name = l.account_id.name
+                # Matrix
+                # append parents at X
+                if first_parent not in X:
+                    X.append(first_parent)
+                # Data
+                if not groups.has_key(group):
+                    groups[group] = {}
+                if not groups[group].has_key(account_name):
+                    groups[group][account_name] = {}
+                if not groups[group][account_name].has_key(first_parent):
+                    groups[group][account_name][first_parent] = []
+                #print group, account_name, first_parent    
+                groups[group][account_name][first_parent].append((2, l))
+
+        #stop
         
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
@@ -91,7 +164,7 @@ class XLSXWizard(models.TransientModel):
         worksheet.merge_range(y, x, y, x+1, 'TOTAL', _red)
         worksheet.write(y, x+2, 'DESV.', _red)
         
-        # data
+        # process data
         y += 1
         for row in groups:
             worksheet.write(y, 0, row.upper(), _bold)
@@ -100,14 +173,20 @@ class XLSXWizard(models.TransientModel):
             for line in groups[row]:
                 worksheet.write(y, 0, line.upper())
                 columns = groups[row][line]
+                # do sums
                 for i, column in enumerate(X):
                     planned_amount = 0
                     practical_amount = 0
                     x = i * 2 + 1
                     if groups[row][line].has_key(column):
-                        for budget_line in groups[row][line][column]:
-                            planned_amount += budget_line.planned_amount
-                            practical_amount += budget_line.practical_amount                        
+                        for ttype, l in groups[row][line][column]:
+                            if ttype == 1:
+                                # from budget
+                                planned_amount += l.planned_amount
+                                practical_amount += l.practical_amount
+                            elif ttype == 2:
+                                # from analytic
+                                practical_amount += l.amount
                     # TODO: add euros
                     worksheet.write(y, x, planned_amount, _money)
                     worksheet.write(y, x+1, practical_amount, _money)
@@ -161,7 +240,7 @@ class XLSXWizard(models.TransientModel):
         vals = {
             'name': 'presupuesto.xlsx',
             'datas': base64.encodestring(xlsxfile.read()),
-            'datas_fname': 'presupuesto.xlsx',
+            'datas_fname': 'presupuesto_%s_%s.xlsx' % (date_from, date_to),
             'res_model': self.budget_id._name,
             'res_id': self.budget_id.id,
             'type': 'binary'
