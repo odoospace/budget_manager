@@ -229,7 +229,7 @@ class crossovered_budget_lines(models.Model):
                     result = 0.0
 
             res[line.id] = result
-        print res
+        #print res
         return res
 
 class budget_manager_line(models.Model):
