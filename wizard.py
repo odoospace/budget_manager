@@ -238,7 +238,7 @@ class XLSXWizard(models.TransientModel):
         # Rewind the buffer.
         xlsxfile.seek(0)
         vals = {
-            'name': 'presupuesto.xlsx',
+            'name': 'presupuesto_%s_%s.xlsx' % (date_from, date_to),
             'datas': base64.encodestring(xlsxfile.read()),
             'datas_fname': 'presupuesto_%s_%s.xlsx' % (date_from, date_to),
             'res_model': self.budget_id._name,
