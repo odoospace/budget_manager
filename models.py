@@ -206,7 +206,7 @@ class crossovered_budget_lines(models.Model):
 
             if line.analytic_account_id.id:
                 SQL = """
-                SELECT a.id, a.date, a.name, a.amount 
+                SELECT sum(a.amount) 
                 FROM ((account_analytic_line as a
                 INNER JOIN account_move_line as l ON l.id = a.move_id)
                 INNER JOIN account_move as m ON m.id = l.move_id)
@@ -220,10 +220,7 @@ class crossovered_budget_lines(models.Model):
                 #analytic_ids = self.pool.get('account.analytic.account').search(cr, uid, [('parent_id', '=', line.analytic_account_id.id)])
                 #analytic_ids += [line.analytic_account_id.id]
                 cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids))
-                data = cr.fetchall()
-                result = sum([i[3] for i in data])
-                for i in data:
-                    print i
+                result = cr.fetchone()[0]
                 
                 if result is None:
                     result = 0.0
