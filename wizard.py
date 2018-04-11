@@ -93,7 +93,7 @@ class XLSXWizard(models.TransientModel):
                 result = self.env.cr.fetchall()
                 #print '>>>', result
                 for res in result:
-                    print res
+                    #print res
                     if res[0] in anaylitic_lines:
                         #print 'removed!!!'
                         anaylitic_lines.remove(res[0])
