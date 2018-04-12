@@ -62,8 +62,8 @@ class XLSXWizard(models.TransientModel):
         ])
         analytic_lines = []
         for line in _anaylitic_lines:
-			code0 = line.account_id.code[0]
-			code1 = line.account_id.code[:2]
+			code0 = line.general_account_id.code[0]
+			code1 = line.general_account_id.code[:2]
 			if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
 				analytic_lines.append(line.id)
 
