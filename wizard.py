@@ -54,13 +54,19 @@ class XLSXWizard(models.TransientModel):
         
         
         # get data from analytic to prepare virtual groups
-        anaylitic_lines = [i.id for i in self.env['account.analytic.line'].search([
+        _anaylitic_lines = self.env['account.analytic.line'].search([
             ('date', '>=', self.date_from),
             ('date', '<=', self.date_to),
             ('company_id', '=', self.budget_id.company_id.id),
             ('segment_id', '=', self.budget_id.segment_id.id)
-        ])]
-        
+        ])
+        analytic_lines = []
+        for line in _anaylitic_lines:
+			code0 = line.account_id.code[0]
+			code1 = line.account_id.code[:2]
+			if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
+				analytic_lines.append(line.id)
+
         account_obj = self.pool.get('account.account')
         for line in self.budget_id.crossovered_budget_line:
             acc_ids = [x.id for x in line.general_budget_id.account_ids]
@@ -94,13 +100,13 @@ class XLSXWizard(models.TransientModel):
                 #print '>>>', result
                 for res in result:
                     #print res
-                    if res[0] in anaylitic_lines:
+                    if res[0] in analytic_lines:
                         #print 'removed!!!'
-                        anaylitic_lines.remove(res[0])
+                        analytic_lines.remove(res[0])
                 
         #print len(anaylitic_lines)
         lines = self.env['account.analytic.line'].search([
-            ('id', 'in', anaylitic_lines)
+            ('id', 'in', analytic_lines)
         ])
         for l in lines:
             #print '%s,"%s","%s",%s,"%s",%s,"%s","%s","%s"' % (
