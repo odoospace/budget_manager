@@ -198,11 +198,10 @@ class crossovered_budget_lines(models.Model):
             date_from = line.date_from
             segment_id = line.segment_id
             # get lower segments (one level)
-            
-            #segment_tmpl_ids = []
-            #segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
-            #segment_ids = self.pool.get('analytic_segment.segment').search(cr, uid, [('segment_tmpl_id', 'in', segment_tmpl_ids)])
-            segment_ids = [segment_id.id]
+            segment_tmpl_ids = [segment_id.id]
+            segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
+            segment_ids = self.pool.get('analytic_segment.segment').search(cr, uid, [('segment_tmpl_id', 'in', segment_tmpl_ids)])
+            #segment_ids = [segment_id.id]
 
             if line.analytic_account_id.id:
                 SQL = """
