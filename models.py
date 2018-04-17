@@ -198,14 +198,14 @@ class crossovered_budget_lines(models.Model):
             date_from = line.date_from
             segment_id = line.segment_id
             # get lower segments (one level)
-            segment_tmpl_ids = [segment_id.id]
-            segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
-            segment_ids = self.pool.get('analytic_segment.segment').search(cr, uid, [('segment_tmpl_id', 'in', segment_tmpl_ids)])
-            #segment_ids = [segment_id.id]
+            #segment_tmpl_ids = [segment_id.id]
+            #segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
+            #segment_ids = self.pool.get('analytic_segment.segment').search(cr, uid, [('segment_tmpl_id', 'in', segment_tmpl_ids)])
+            segment_ids = [segment_id.id]
 
             if line.analytic_account_id.id:
                 SQL = """
-                SELECT sum(a.amount) 
+                SELECT a.id, a.name, a.amount 
                 FROM ((account_analytic_line as a
                 INNER JOIN account_move_line as l ON l.id = a.move_id)
                 INNER JOIN account_move as m ON m.id = l.move_id)
@@ -215,12 +215,15 @@ class crossovered_budget_lines(models.Model):
                     AND a.general_account_id = ANY(%s)
                     AND m.segment_id = ANY(%s)
                 """
+                #print SQL, line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids
                 # TODO: add more lower leves (childs of childs)
                 #analytic_ids = self.pool.get('account.analytic.account').search(cr, uid, [('parent_id', '=', line.analytic_account_id.id)])
                 #analytic_ids += [line.analytic_account_id.id]
                 cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids))
-                result = cr.fetchone()[0]
-                
+                _result = cr.fetchall()
+                for i in _result:
+                    print  i
+                result = sum([i[2] for i in _result])
                 if result is None:
                     result = 0.0
 

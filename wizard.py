@@ -77,10 +77,10 @@ class XLSXWizard(models.TransientModel):
             date_from = line.date_from
             segment_id = line.segment_id
             # get lower segments (one level)
-            segment_tmpl_ids = [segment_id.id]
-            segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
-            segment_ids = [i.id for i in self.env['analytic_segment.segment'].search([('segment_tmpl_id', 'in', segment_tmpl_ids)])]
-            #segment_ids = [segment_id.id]
+            #segment_tmpl_ids = [segment_id.id]
+            #segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
+            #segment_ids = [i.id for i in self.env['analytic_segment.segment'].search([('segment_tmpl_id', 'in', segment_tmpl_ids)])]
+            segment_ids = [segment_id.id]
         
             if line.analytic_account_id.id:
                 SQL = """
@@ -118,21 +118,25 @@ class XLSXWizard(models.TransientModel):
             level = l.account_id.level
             if level <= 2:
                 group = G[l.account_id.group]
-                first_parent = l.account_id.first_parent().name
                 account_name = l.account_id.name
-                # Matrix
-                # append parents at X
-                if first_parent not in X:
-                    X.append(first_parent)
-                # Data
-                if not groups.has_key(group):
-                    groups[group] = {}
-                if not groups[group].has_key(account_name):
-                    groups[group][account_name] = {}
-                if not groups[group][account_name].has_key(first_parent):
-                    groups[group][account_name][first_parent] = []
-                #print group, account_name, first_parent    
-                groups[group][account_name][first_parent].append((2, l))
+            elif level == 3:
+                group = G[l.account_id.parent_id.group]
+                account_name = l.account_id.parent_id.name
+            first_parent = l.account_id.first_parent().name
+
+            # Matrix
+            # append parents at X
+            if first_parent not in X:
+                X.append(first_parent)
+            # Data
+            if not groups.has_key(group):
+                groups[group] = {}
+            if not groups[group].has_key(account_name):
+                groups[group][account_name] = {}
+            if not groups[group][account_name].has_key(first_parent):
+                groups[group][account_name][first_parent] = []
+            #print group, account_name, first_parent    
+            groups[group][account_name][first_parent].append((2, l))
 
         #stop
         
