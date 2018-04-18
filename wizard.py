@@ -240,7 +240,7 @@ class XLSXWizard(models.TransientModel):
             # add %
             cell_planned = xl_rowcol_to_cell(y, x)
             cell_practical = xl_rowcol_to_cell(y, x+1)
-            worksheet.write_formula(y, x+2, '{=%s/%s*100}' % (cell_practical, cell_planned), _blue_porcentage)
+            worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
         
         # close it 
         workbook.close()
