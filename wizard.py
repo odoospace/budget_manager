@@ -7,6 +7,7 @@ import StringIO
 import string
 import xlsxwriter
 import base64
+import collections
 # TODO: more general use...
 G = {
     False: 'No asignado',
@@ -41,7 +42,7 @@ class XLSXWizard(models.TransientModel):
                 # Matrix
                 # append parents at X
                 if first_parent not in X:
-                    X.append(first_parent)
+                    X.append(first_parent.upper().strip())
                 # Data
                 if not groups.has_key(group):
                     groups[group] = {}
@@ -51,7 +52,7 @@ class XLSXWizard(models.TransientModel):
                     groups[group][account_name][first_parent] = []
                     
                 groups[group][account_name][first_parent].append((1,line))
-        
+                
         
         # get data from analytic to prepare virtual groups
         _anaylitic_lines = self.env['account.analytic.line'].search([
@@ -62,10 +63,10 @@ class XLSXWizard(models.TransientModel):
         ])
         analytic_lines = []
         for line in _anaylitic_lines:
-			code0 = line.general_account_id.code[0]
-			code1 = line.general_account_id.code[:2]
-			if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
-				analytic_lines.append(line.id)
+            code0 = line.general_account_id.code[0]
+            code1 = line.general_account_id.code[:2]
+            if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
+                analytic_lines.append(line.id)
 
         account_obj = self.pool.get('account.account')
         for line in self.budget_id.crossovered_budget_line:
@@ -127,7 +128,7 @@ class XLSXWizard(models.TransientModel):
             # Matrix
             # append parents at X
             if first_parent not in X:
-                X.append(first_parent)
+                X.append(first_parent.upper().strip())
             # Data
             if not groups.has_key(group):
                 groups[group] = {}
@@ -138,7 +139,13 @@ class XLSXWizard(models.TransientModel):
             #print group, account_name, first_parent    
             groups[group][account_name][first_parent].append((2, l))
 
-        #stop
+        # reordered X
+        XX = []
+        for item in [
+            'SALARIOS', 'MATERIALES', 'SERVICIOS EXTERNOS',
+            'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS', 'INGRESOS']:
+            if item in X:
+                XX.append(item)
         
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
@@ -148,7 +155,10 @@ class XLSXWizard(models.TransientModel):
         _money = workbook.add_format({'num_format': '#,##0.00'})
         _porcentage = workbook.add_format({'num_format': '#,##0.00"%"'})
         _bold = workbook.add_format({'bold': True})
+        _bold_center = workbook.add_format({'bold': True, 'align': 'center'})
         _yellow = workbook.add_format({'bold': True, 'bg_color': 'yellow'})
+        _silver_money = workbook.add_format({'bg_color': 'silver', 'num_format': '#,##0.00'})
+        _silver_bold_center = workbook.add_format({'bold': True, 'bg_color': 'silver', 'align': 'center'})
         _gray = workbook.add_format({'bold': True, 'bg_color': 'gray'})
         _gray_money = workbook.add_format({'bold': True, 'bg_color': 'gray', 'num_format': '#,##0.00'})
         _gray_porcentage = workbook.add_format({'bold': True, 'bg_color': 'gray', 'num_format': '#,##0.00"%"'})
@@ -166,7 +176,7 @@ class XLSXWizard(models.TransientModel):
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').strftime('%d/%m/%y')
         name = '%s (%s - %s)' % (self.budget_id.name, date_from, date_to)
         worksheet.write(y, 0, name, _yellow)
-        for column in X:
+        for column in XX:
             worksheet.set_column(x, x+1, 12)
             worksheet.merge_range(y, x, y, x+1, column, _purple)
             x += 2
@@ -176,13 +186,26 @@ class XLSXWizard(models.TransientModel):
         
         # process data
         y += 1
-        for row in groups:
+        #for row in groups:
+        _groups = [
+            'Gastos Secretarias', 'Gastos Areas y Equipos',
+            'Gastos Generales', 'Otros', 'No asignado', 'Ingresos']
+        for row in _groups:
+            if not groups.has_key(row):
+                continue
             worksheet.write(y, 0, row.upper(), _bold)
+            x = 1
+            for column in XX:
+                worksheet.write(y, x, 'PRESUP.', _bold_center)
+                worksheet.write(y, x+1, 'REALES', _silver_bold_center)
+                x += 2
             y += 1
             y0 = y
-            for line in groups[row]:
+            _lines = collections.OrderedDict(sorted(groups[row].items()))
+            for line in _lines:
                 worksheet.write(y, 0, line.upper())
-                columns = groups[row][line]
+                # TODO: remove columns ?
+                #columns = groups[row][line]
                 # do sums
                 for i, column in enumerate(X):
                     planned_amount = 0
@@ -199,7 +222,7 @@ class XLSXWizard(models.TransientModel):
                                 practical_amount += l.amount
                     # TODO: add euros
                     worksheet.write(y, x, planned_amount, _money)
-                    worksheet.write(y, x+1, practical_amount, _money)
+                    worksheet.write(y, x+1, practical_amount, _silver_money)
                 # add X totals (red)
                 cell_range_planned = ''
                 cell_range_practical = ''
