@@ -3,6 +3,7 @@ from openerp import models, fields, api
 from pprint import pprint
 from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
 from datetime import datetime
+from copy import copy
 import StringIO
 import string
 import xlsxwriter
@@ -62,11 +63,13 @@ class XLSXWizard(models.TransientModel):
             ('segment_id', '=', self.budget_id.segment_id.id)
         ])
         analytic_lines = []
+        analytic_lines_obj = []
         for line in _anaylitic_lines:
             code0 = line.general_account_id.code[0]
             code1 = line.general_account_id.code[:2]
             if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
                 analytic_lines.append(line.id)
+                analytic_lines_obj.append(line)
 
         account_obj = self.pool.get('account.account')
         for line in self.budget_id.crossovered_budget_line:
@@ -326,6 +329,20 @@ class XLSXWizard(models.TransientModel):
         worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
             
         # TODO: addnew worksheet with analytic lines
+        worksheet_lines = workbook.add_worksheet()
+        y = 1
+        
+        for line in sorted(analytic_lines_obj, key=lambda x: x.date):
+            worksheet_lines.write(y, 0, line.date)
+            worksheet_lines.write(y, 1, line.name)
+            worksheet_lines.write(y, 2, line.amount)
+            worksheet_lines.write(y, 3, line.general_account_id.name)
+            worksheet_lines.write(y, 4, line.move_id.partner_id and line.move_id.partner_id.name or '')
+            worksheet_lines.write(y, 5, line.account_id.parent_id.parent_id and line.account_id.parent_id.parent_id.name or '')
+            worksheet_lines.write(y, 6, line.account_id.parent_id.name)
+            worksheet_lines.write(y, 7, line.account_id.name)
+            y += 1
+            
         
         # close it 
         workbook.close()
