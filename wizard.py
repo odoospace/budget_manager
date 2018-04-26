@@ -249,7 +249,7 @@ class XLSXWizard(models.TransientModel):
                 worksheet.write_formula(y, x+4, '{=%s/%s*100}' % (cell_practical, cell_planned), _porcentage)
                 y += 1
             # add Y total
-            worksheet.write(y, 0, 'TOTAL DE %s' % row.upper(), _gray)
+            worksheet.write(y, 0, 'TOTAL %s' % row.upper(), _gray)
             for i in range(len(XX)+1): # add X total column too
                 x = i * 2 + 1
                 cell_range = xl_range(y0, x, y-1, x)
@@ -330,17 +330,44 @@ class XLSXWizard(models.TransientModel):
             
         # TODO: addnew worksheet with analytic lines
         worksheet_lines = workbook.add_worksheet()
-        y = 1
+        y = 0
         
+        # headers
+        worksheet_lines.set_column(0, 0, 12)
+        worksheet_lines.write(y, 0, 'Date', _gray)
+        worksheet_lines.set_column(1, 1, 70)
+        worksheet_lines.write(y, 1, 'Description', _gray)
+        worksheet_lines.set_column(2, 2, 12)
+        worksheet_lines.write(y, 2, 'Amount', _gray)
+        worksheet_lines.set_column(3, 3, 30)
+        worksheet_lines.write(y, 3, 'Account', _gray)
+        worksheet_lines.set_column(4, 4, 30)
+        worksheet_lines.write(y, 4, 'Partner', _gray)
+        worksheet_lines.set_column(5, 5, 30)
+        worksheet_lines.write(y, 5, 'Analytic-1', _gray)
+        worksheet_lines.set_column(6, 6, 30)
+        worksheet_lines.write(y, 6, 'Analytic-2', _gray)
+        worksheet_lines.set_column(7, 7, 30)
+        worksheet_lines.write(y, 7, 'Analytic-3', _gray)
+        worksheet_lines.freeze_panes(1, 0) # freeze first row
+        y +=1 
+        
+        # data
         for line in sorted(analytic_lines_obj, key=lambda x: x.date):
             worksheet_lines.write(y, 0, line.date)
             worksheet_lines.write(y, 1, line.name)
-            worksheet_lines.write(y, 2, line.amount)
+            worksheet_lines.write(y, 2, line.amount, _money)
             worksheet_lines.write(y, 3, line.general_account_id.name)
             worksheet_lines.write(y, 4, line.move_id.partner_id and line.move_id.partner_id.name or '')
-            worksheet_lines.write(y, 5, line.account_id.parent_id.parent_id and line.account_id.parent_id.parent_id.name or '')
-            worksheet_lines.write(y, 6, line.account_id.parent_id.name)
-            worksheet_lines.write(y, 7, line.account_id.name)
+            if line.account_id.parent_id.parent_id: # level 3
+                worksheet_lines.write(y, 5, line.account_id.parent_id.parent_id.name)
+                worksheet_lines.write(y, 6, line.account_id.parent_id.name)
+                worksheet_lines.write(y, 7, line.account_id.name)
+            elif line.account_id.parent_id: # level 2
+                worksheet_lines.write(y, 5, line.account_id.parent_id.name)
+                worksheet_lines.write(y, 6, line.account_id.name)
+            else: # level 1
+                worksheet_lines.write(y, 5, line.account_id.name)
             y += 1
             
         
