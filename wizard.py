@@ -143,7 +143,7 @@ class XLSXWizard(models.TransientModel):
         XX = []
         for item in [
             'SALARIOS', 'MATERIALES', 'SERVICIOS EXTERNOS',
-            'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS', 'INGRESOS']:
+            'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS']:
             if item in X:
                 XX.append(item)
         
@@ -156,7 +156,7 @@ class XLSXWizard(models.TransientModel):
         
         # styles
         _money = workbook.add_format({'num_format': '#,##0.00'})
-        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': 'green'})
+        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': '#92ff96'})
         _bold = workbook.add_format({'bold': True})
         _bold_center = workbook.add_format({'bold': True, 'align': 'center'})
         _yellow = workbook.add_format({'bold': True, 'bg_color': 'yellow'})
@@ -215,7 +215,7 @@ class XLSXWizard(models.TransientModel):
                 # TODO: remove columns ?
                 #columns = groups[row][line]
                 # do sums
-                for i, column in enumerate(X):
+                for i, column in enumerate(XX):
                     planned_amount = 0
                     practical_amount = 0
                     x = i * 2 + 1
@@ -234,7 +234,7 @@ class XLSXWizard(models.TransientModel):
                 # add X totals (red)
                 cell_range_planned = ''
                 cell_range_practical = ''
-                for i, column in enumerate(X):
+                for i, column in enumerate(XX):
                     x0 = i * 2 + 1
                     cell_range_planned += '%s+' % xl_rowcol_to_cell(y, x0)
                     cell_range_practical += '%s+' % xl_rowcol_to_cell(y, x0+1)
@@ -247,7 +247,7 @@ class XLSXWizard(models.TransientModel):
                 y += 1
             # add Y total
             worksheet.write(y, 0, 'TOTAL DE %s' % row.upper(), _gray)
-            for i in range(len(X)+1): # add X total column too
+            for i in range(len(XX)+1): # add X total column too
                 x = i * 2 + 1
                 cell_range = xl_range(y0, x, y-1, x)
                 worksheet.write_formula(y, x, '{=SUM(%s)}' % cell_range, _gray_money)
@@ -262,7 +262,7 @@ class XLSXWizard(models.TransientModel):
         # total
         y += 1 # empty line
         worksheet.write(y, 0, 'TOTAL GENERAL', _blue)
-        for i in range(len(X)+1):
+        for i in range(len(XX)+1):
             x = i * 2 + 1
             cell_range = xl_range(1, x, y-1, x)
             worksheet.write_formula(y, x, '{=SUM(%s)/2}' % cell_range, _blue_money)
@@ -278,8 +278,9 @@ class XLSXWizard(models.TransientModel):
         # special INCOMING part
         # TODO: refactorize this!
         row = 'Ingresos'
-        #worksheet.set_column(y, x_total-1, 40)
-        worksheet.write(y, x_total-1, row.upper(), _yellow)
+        worksheet.merge_range(y, x_total-3, y, x_total-1, row.upper(), _yellow )
+        #worksheet.set_column(x_total-1, x_total-1, 40)
+        #worksheet.write(y, x_total-1, row.upper(), _yellow)
         worksheet.merge_range(y, x_total, y, x_total+1, 'TOTAL', _red)
         worksheet.write(y, x_total+2, 'DESV.', _red)
         y += 1
@@ -287,7 +288,7 @@ class XLSXWizard(models.TransientModel):
         # budget data
         _lines = collections.OrderedDict(sorted(groups[row].items()))
         for line in _lines:
-            worksheet.write(y, x_total-1, line.upper())
+            worksheet.merge_range(y, x_total-3, y, x_total-1, line.upper())
             # TODO: remove columns ?
             # columns = groups[row][line]
             # do sums
@@ -314,7 +315,7 @@ class XLSXWizard(models.TransientModel):
             
         # total 'Ingresos'
         y += 1 # empty line
-        worksheet.write(y, x_total-1, 'TOTAL %s' % group.upper(), _blue)
+        worksheet.merge_range(y, x_total-3, y, x_total-1, 'TOTAL %s' % row.upper(), _blue)
         cell_range = xl_range(y_income, x_total, y-1, x_total)
         worksheet.write_formula(y, x_total, '{=SUM(%s)}' % cell_range, _blue_money)
         cell_range = xl_range(y_income, x_total+1, y-1, x_total+1)
