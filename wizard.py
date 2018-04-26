@@ -170,6 +170,9 @@ class XLSXWizard(models.TransientModel):
         _gray_porcentage = workbook.add_format({'bold': True, 'bg_color': 'gray', 'num_format': '#,##0.00"%"'})
         _purple = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'purple', 'font_color': 'white'})
         _red = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white'})
+        _red_total = workbook.add_format({'bold': True, 'bg_color': 'red', 'font_color': 'white'})
+        _red_money = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white', 'num_format': '#,##0.00'})
+        _red_porcentage = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white', 'num_format': '#,##0.00"%"'})
         _blue = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white'})
         _blue_money = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00'})
         _blue_porcentage = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00"%"'}) 
@@ -276,6 +279,7 @@ class XLSXWizard(models.TransientModel):
             cell_practical = xl_rowcol_to_cell(y, x+1)
             worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
         
+        y_total = y
         y += 2
         
         # special INCOMING part
@@ -328,7 +332,20 @@ class XLSXWizard(models.TransientModel):
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
         worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
             
-        # TODO: addnew worksheet with analytic lines
+        # supertotal!
+        y += 2 # empty line
+        worksheet.merge_range(y, x_total-3, y, x_total-1, 'REMANENTE', _red_total)
+        cell_range_planned += '%s+%s' % (xl_rowcol_to_cell(y_total, x_total), xl_rowcol_to_cell(y-2, x_total))
+        cell_range_practical += '%s+%s' % (xl_rowcol_to_cell(y_total, x_total+1), xl_rowcol_to_cell(y-2, x_total+1))
+        worksheet.write_formula(y, x_total, '{=%s}' % cell_range_planned[:-1], _red_money)
+        worksheet.write_formula(y, x_total+1, '{=%s}' % cell_range_practical[:-1], _red_money)
+        # add %
+        cell_planned = xl_rowcol_to_cell(y, x_total)
+        cell_practical = xl_rowcol_to_cell(y, x_total+1)
+        worksheet.write_formula(y, x_total+2, '{=%s/%s*100}' % (cell_practical, cell_planned), _red_porcentage)
+             
+            
+        # new worksheet with analytic lines!!!
         worksheet_lines = workbook.add_worksheet()
         y = 0
         
