@@ -335,10 +335,10 @@ class XLSXWizard(models.TransientModel):
         # supertotal!
         y += 2 # empty line
         worksheet.merge_range(y, x_total-3, y, x_total-1, 'REMANENTE', _red_total)
-        cell_range_planned += '%s+%s' % (xl_rowcol_to_cell(y_total, x_total), xl_rowcol_to_cell(y-2, x_total))
-        cell_range_practical += '%s+%s' % (xl_rowcol_to_cell(y_total, x_total+1), xl_rowcol_to_cell(y-2, x_total+1))
-        worksheet.write_formula(y, x_total, '{=%s}' % cell_range_planned[:-1], _red_money)
-        worksheet.write_formula(y, x_total+1, '{=%s}' % cell_range_practical[:-1], _red_money)
+        cell_range_planned = '%s+%s' % (xl_rowcol_to_cell(y_total, x_total), xl_rowcol_to_cell(y-2, x_total))
+        cell_range_practical = '%s+%s' % (xl_rowcol_to_cell(y_total, x_total+1), xl_rowcol_to_cell(y-2, x_total+1))
+        worksheet.write_formula(y, x_total, '{=%s}' % cell_range_planned, _red_money)
+        worksheet.write_formula(y, x_total+1, '{=%s}' % cell_range_practical, _red_money)
         # add %
         cell_planned = xl_rowcol_to_cell(y, x_total)
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
