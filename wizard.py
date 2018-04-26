@@ -152,13 +152,16 @@ class XLSXWizard(models.TransientModel):
         xlsxfile = StringIO.StringIO()
         workbook = xlsxwriter.Workbook(xlsxfile, {'in_memory': True})
         worksheet = workbook.add_worksheet()
+        worksheet.freeze_panes(1, 1) # freeze first column and first row
+        
+        # styles
         _money = workbook.add_format({'num_format': '#,##0.00'})
-        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"'})
+        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': 'green'})
         _bold = workbook.add_format({'bold': True})
         _bold_center = workbook.add_format({'bold': True, 'align': 'center'})
         _yellow = workbook.add_format({'bold': True, 'bg_color': 'yellow'})
-        _silver_money = workbook.add_format({'bg_color': 'silver', 'num_format': '#,##0.00'})
-        _silver_bold_center = workbook.add_format({'bold': True, 'bg_color': 'silver', 'align': 'center'})
+        _silver_money = workbook.add_format({'bg_color': '#D0D0D0', 'num_format': '#,##0.00'})
+        _silver_bold_center = workbook.add_format({'bold': True, 'bg_color': '#D0D0D0', 'align': 'center'})
         _gray = workbook.add_format({'bold': True, 'bg_color': 'gray'})
         _gray_money = workbook.add_format({'bold': True, 'bg_color': 'gray', 'num_format': '#,##0.00'})
         _gray_porcentage = workbook.add_format({'bold': True, 'bg_color': 'gray', 'num_format': '#,##0.00"%"'})
@@ -171,7 +174,7 @@ class XLSXWizard(models.TransientModel):
         # header
         y = 0
         x = 1
-        worksheet.set_column(0, 0, 60)
+        worksheet.set_column(0, 0, 40)
         date_from = datetime.strptime(self.date_from, '%Y-%m-%d').strftime('%d/%m/%y')
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').strftime('%d/%m/%y')
         name = '%s (%s - %s)' % (self.budget_id.name, date_from, date_to)
@@ -180,6 +183,7 @@ class XLSXWizard(models.TransientModel):
             worksheet.set_column(x, x+1, 12)
             worksheet.merge_range(y, x, y, x+1, column, _purple)
             x += 2
+        x_total = x
         worksheet.set_column(x, x+1, 12)
         worksheet.merge_range(y, x, y, x+1, 'TOTAL', _red)
         worksheet.write(y, x+2, 'DESV.', _red)
@@ -189,7 +193,7 @@ class XLSXWizard(models.TransientModel):
         #for row in groups:
         _groups = [
             'Gastos Secretarias', 'Gastos Areas y Equipos',
-            'Gastos Generales', 'Otros', 'No asignado', 'Ingresos']
+            'Gastos Generales', 'Otros', 'No asignado']
         for row in _groups:
             if not groups.has_key(row):
                 continue
@@ -197,10 +201,14 @@ class XLSXWizard(models.TransientModel):
             x = 1
             for column in XX:
                 worksheet.write(y, x, 'PRESUP.', _bold_center)
-                worksheet.write(y, x+1, 'REALES', _silver_bold_center)
+                worksheet.write(y, x+1, 'REALES', _bold_center)
                 x += 2
+            worksheet.write(y, x, 'PRESUP.', _bold_center)
+            worksheet.write(y, x+1, 'REALES', _bold_center)
+            worksheet.write(y, x+2, '%', _bold_center)
             y += 1
             y0 = y
+            # budget data
             _lines = collections.OrderedDict(sorted(groups[row].items()))
             for line in _lines:
                 worksheet.write(y, 0, line.upper())
@@ -264,6 +272,59 @@ class XLSXWizard(models.TransientModel):
             cell_planned = xl_rowcol_to_cell(y, x)
             cell_practical = xl_rowcol_to_cell(y, x+1)
             worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
+        
+        y += 2
+        
+        # special INCOMING part
+        # TODO: refactorize this!
+        row = 'Ingresos'
+        #worksheet.set_column(y, x_total-1, 40)
+        worksheet.write(y, x_total-1, row.upper(), _yellow)
+        worksheet.merge_range(y, x_total, y, x_total+1, 'TOTAL', _red)
+        worksheet.write(y, x_total+2, 'DESV.', _red)
+        y += 1
+        y_income = y
+        # budget data
+        _lines = collections.OrderedDict(sorted(groups[row].items()))
+        for line in _lines:
+            worksheet.write(y, x_total-1, line.upper())
+            # TODO: remove columns ?
+            # columns = groups[row][line]
+            # do sums
+            column = 'INGRESOS'
+            planned_amount = 0
+            practical_amount = 0
+            if groups[row][line].has_key(column):
+                for ttype, l in groups[row][line][column]:
+                    if ttype == 1:
+                        # from budget
+                        planned_amount += l.planned_amount
+                        practical_amount += l.practical_amount
+                    elif ttype == 2:
+                        # from analytic
+                        practical_amount += l.amount
+            # TODO: add euros
+            worksheet.write(y, x_total, planned_amount, _money)
+            worksheet.write(y, x_total+1, practical_amount, _silver_money)
+            # add %
+            cell_planned = xl_rowcol_to_cell(y, x_total)
+            cell_practical = xl_rowcol_to_cell(y, x_total+1)
+            worksheet.write_formula(y, x+2, '{=%s/%s*100}' % (cell_practical, cell_planned), _porcentage)
+            y += 1
+            
+        # total 'Ingresos'
+        y += 1 # empty line
+        worksheet.write(y, x_total-1, 'TOTAL %s' % group.upper(), _blue)
+        cell_range = xl_range(y_income, x_total, y-1, x_total)
+        worksheet.write_formula(y, x_total, '{=SUM(%s)}' % cell_range, _blue_money)
+        cell_range = xl_range(y_income, x_total+1, y-1, x_total+1)
+        worksheet.write_formula(y, x_total+1, '{=SUM(%s)}' % cell_range, _blue_money)
+        # add %
+        cell_planned = xl_rowcol_to_cell(y, x_total)
+        cell_practical = xl_rowcol_to_cell(y, x_total+1)
+        worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
+            
+        # TODO: addnew worksheet with analytic lines
         
         # close it 
         workbook.close()
