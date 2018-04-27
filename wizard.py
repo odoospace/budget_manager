@@ -249,7 +249,7 @@ class XLSXWizard(models.TransientModel):
                 # add %
                 cell_planned = xl_rowcol_to_cell(y, x+2)
                 cell_practical = xl_rowcol_to_cell(y, x+3)
-                worksheet.write_formula(y, x+4, '{=%s/%s*100}' % (cell_practical, cell_planned), _porcentage)
+                worksheet.write_formula(y, x+4, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _porcentage)
                 y += 1
             # add Y total
             worksheet.write(y, 0, 'TOTAL %s' % row.upper(), _gray)
@@ -262,7 +262,7 @@ class XLSXWizard(models.TransientModel):
                 # add %
                 cell_planned = xl_rowcol_to_cell(y, x)
                 cell_practical = xl_rowcol_to_cell(y, x+1)
-                worksheet.write_formula(y, x+2, '{=%s/%s*100}' % (cell_practical, cell_planned), _gray_porcentage)
+                worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _gray_porcentage)
             y += 1
             
         # total
@@ -317,7 +317,7 @@ class XLSXWizard(models.TransientModel):
             # add %
             cell_planned = xl_rowcol_to_cell(y, x_total)
             cell_practical = xl_rowcol_to_cell(y, x_total+1)
-            worksheet.write_formula(y, x+2, '{=%s/%s*100}' % (cell_practical, cell_planned), _porcentage)
+            worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _porcentage)
             y += 1
             
         # total 'Ingresos'
@@ -342,7 +342,7 @@ class XLSXWizard(models.TransientModel):
         # add %
         cell_planned = xl_rowcol_to_cell(y, x_total)
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
-        worksheet.write_formula(y, x_total+2, '{=%s/%s*100}' % (cell_practical, cell_planned), _red_porcentage)
+        worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _red_porcentage)
              
             
         # new worksheet with analytic lines!!!
