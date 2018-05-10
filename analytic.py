@@ -10,7 +10,8 @@ class account_analytic_account(models.Model):
         ('B', 'Gastos Areas y Equipos'),
         ('C', 'Gastos Generales'),
         ('D', 'Ingresos'),
-        ('E', 'Otros')
+        ('E', 'Otros'),
+        ('F', 'Gastos Extraordinarios')
     ])
     
     def first_parent(self, parent=None):

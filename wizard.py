@@ -16,7 +16,8 @@ G = {
     'B': 'Gastos Areas y Equipos',
     'C': 'Gastos Generales',
     'D': 'Ingresos',
-    'E': 'Otros'
+    'E': 'Otros',
+    'F': 'Gastos Extraordinarios'
 }
 
 class XLSXWizard(models.TransientModel):
