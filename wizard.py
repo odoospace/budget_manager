@@ -202,7 +202,7 @@ class XLSXWizard(models.TransientModel):
         #for row in groups:
         _groups = [
             'Gastos Secretarias', 'Gastos Areas y Equipos',
-            'Gastos Generales', 'Otros', 'No asignado']
+            'Gastos Generales', 'Gastos Extraordinarios', 'Otros', 'No asignado']
         for row in _groups:
             if not groups.has_key(row):
                 continue
