@@ -4,6 +4,7 @@ from pprint import pprint
 from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
 from datetime import datetime
 from copy import copy
+from calendar import monthrange
 import StringIO
 import string
 import xlsxwriter
@@ -27,10 +28,24 @@ class XLSXWizard(models.TransientModel):
     date_from = fields.Date(required=True)
     date_to = fields.Date(required=True)
 
-    
+
     @api.one
     def run_export_xlsx(self):
-        
+
+        print self.date_from, self.date_to
+        # adjust dates internally
+        # TODO: use odoo stuff for dates
+        _date_to = self.date_to
+        _date_from = self.date_from
+        date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
+        date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
+
+        last_day = monthrange(date_to.year, date_to.month)[1]
+        self.date_from = datetime(date_from.year, date_from.month, 1).strftime('%Y-%m-%d')
+        self.date_to = datetime(date_to.year, date_to.month, last_day).strftime('%Y-%m-%d')
+
+        print self.date_from, self.date_to
+
         # prepare groups
         groups = {}
         X = []
@@ -52,10 +67,10 @@ class XLSXWizard(models.TransientModel):
                     groups[group][account_name] = {}
                 if not groups[group][account_name].has_key(first_parent):
                     groups[group][account_name][first_parent] = []
-                    
+
                 groups[group][account_name][first_parent].append((1,line))
-                
-        
+
+
         # get data from analytic to prepare virtual groups
         _anaylitic_lines = self.env['account.analytic.line'].search([
             ('date', '>=', self.date_from),
@@ -86,7 +101,7 @@ class XLSXWizard(models.TransientModel):
             #segment_tmpl_ids += segment_id.segment_tmpl_id.get_direct_childs_ids()
             #segment_ids = [i.id for i in self.env['analytic_segment.segment'].search([('segment_tmpl_id', 'in', segment_tmpl_ids)])]
             segment_ids = [segment_id.id]
-        
+
             if line.analytic_account_id.id:
                 SQL = """
                 SELECT a.id, a.amount
@@ -95,10 +110,10 @@ class XLSXWizard(models.TransientModel):
                 INNER JOIN account_move as m ON m.id = l.move_id)
                 WHERE a.account_id = %s
                     AND (a.date between to_date(%s, 'yyyy-mm-dd')
-                        AND to_date(%s, 'yyyy-mm-dd')) 
+                        AND to_date(%s, 'yyyy-mm-dd'))
                     AND a.general_account_id = ANY(%s)
                     AND m.segment_id = ANY(%s)
-                """ 
+                """
                 #_z = line.analytic_account_id.id, date_from, date_to, list(acc_ids), list(segment_ids)
                 self.env.cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids))
                 result = self.env.cr.fetchall()
@@ -108,7 +123,7 @@ class XLSXWizard(models.TransientModel):
                     if res[0] in analytic_lines:
                         #print 'removed!!!'
                         analytic_lines.remove(res[0])
-                
+
         #print len(anaylitic_lines)
         lines = self.env['account.analytic.line'].search([
             ('id', 'in', analytic_lines)
@@ -116,7 +131,7 @@ class XLSXWizard(models.TransientModel):
         for l in lines:
             #print '%s,"%s","%s",%s,"%s",%s,"%s","%s","%s"' % (
             #    l.id, l.date, l.name, l.amount, l.account_id.name,
-            #    l.account_id.level, 
+            #    l.account_id.level,
             #    l.move_id.name, l.account_id.group,
             #    l.account_id.first_parent().name
             #)
@@ -142,7 +157,7 @@ class XLSXWizard(models.TransientModel):
                 groups[group][account_name] = {}
             if not groups[group][account_name].has_key(first_parent):
                 groups[group][account_name][first_parent] = []
-            #print group, account_name, first_parent    
+            #print group, account_name, first_parent
             groups[group][account_name][first_parent].append((2, l))
 
         # reordered X
@@ -152,14 +167,14 @@ class XLSXWizard(models.TransientModel):
             'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS']:
             if item in X:
                 XX.append(item)
-        
+
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
         xlsxfile = StringIO.StringIO()
         workbook = xlsxwriter.Workbook(xlsxfile, {'in_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.freeze_panes(1, 1) # freeze first column and first row
-        
+
         # styles
         _money = workbook.add_format({'num_format': '#,##0.00'})
         _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': '#92ff96'})
@@ -178,8 +193,8 @@ class XLSXWizard(models.TransientModel):
         _red_porcentage = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white', 'num_format': '#,##0.00"%"'})
         _blue = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white'})
         _blue_money = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00'})
-        _blue_porcentage = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00"%"'}) 
-        
+        _blue_porcentage = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00"%"'})
+
         # header
         y = 0
         x = 1
@@ -196,7 +211,7 @@ class XLSXWizard(models.TransientModel):
         worksheet.set_column(x, x+1, 12)
         worksheet.merge_range(y, x, y, x+1, 'TOTAL', _red)
         worksheet.write(y, x+2, 'DESV.', _red)
-        
+
         # process data
         y += 1
         #for row in groups:
@@ -267,7 +282,7 @@ class XLSXWizard(models.TransientModel):
                 cell_practical = xl_rowcol_to_cell(y, x+1)
                 worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _gray_porcentage)
             y += 1
-            
+
         # total
         y += 1 # empty line
         worksheet.write(y, 0, 'TOTAL GENERAL', _blue)
@@ -281,10 +296,10 @@ class XLSXWizard(models.TransientModel):
             cell_planned = xl_rowcol_to_cell(y, x)
             cell_practical = xl_rowcol_to_cell(y, x+1)
             worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
-        
+
         y_total = y
         y += 2
-        
+
         # special INCOMING part
         # TODO: refactorize this!
         row = 'Ingresos'
@@ -322,7 +337,7 @@ class XLSXWizard(models.TransientModel):
             cell_practical = xl_rowcol_to_cell(y, x_total+1)
             worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _porcentage)
             y += 1
-            
+
         # total 'Ingresos'
         y += 1 # empty line
         worksheet.merge_range(y, x_total-3, y, x_total-1, 'TOTAL %s' % row.upper(), _blue)
@@ -334,7 +349,7 @@ class XLSXWizard(models.TransientModel):
         cell_planned = xl_rowcol_to_cell(y, x_total)
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
         worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
-            
+
         # supertotal!
         y += 2 # empty line
         worksheet.merge_range(y, x_total-3, y, x_total-1, 'REMANENTE', _red_total)
@@ -346,12 +361,12 @@ class XLSXWizard(models.TransientModel):
         cell_planned = xl_rowcol_to_cell(y, x_total)
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
         worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _red_porcentage)
-             
-            
+
+
         # new worksheet with analytic lines!!!
         worksheet_lines = workbook.add_worksheet()
         y = 0
-        
+
         # headers
         worksheet_lines.set_column(0, 0, 12)
         worksheet_lines.write(y, 0, 'Date', _gray)
@@ -376,10 +391,10 @@ class XLSXWizard(models.TransientModel):
         worksheet_lines.set_column(10, 10, 12)
         worksheet_lines.write(y, 10, 'Amount', _gray)
 
-        
+
         worksheet_lines.freeze_panes(1, 0) # freeze first row
-        y +=1 
-        
+        y +=1
+
         # data
         for line in sorted(analytic_lines_obj, key=lambda x: x.date):
             worksheet_lines.write(y, 0, line.date)
@@ -400,17 +415,18 @@ class XLSXWizard(models.TransientModel):
             worksheet_lines.write(y, 9, line.name)
             worksheet_lines.write(y, 10, line.amount, _money)
             y += 1
-            
-        
-        # close it 
+
+
+        # close it
         workbook.close()
-        
+
         # Rewind the buffer.
         xlsxfile.seek(0)
+        name = self.budget_id.name.lower().replace(' ', '_')
         vals = {
-            'name': 'presupuesto_%s_%s.xlsx' % (date_from, date_to),
+            'name': 'presupuesto_%s_%s_%s.xlsx' % (name, _date_from, _date_to),
             'datas': base64.encodestring(xlsxfile.read()),
-            'datas_fname': 'presupuesto_%s_%s.xlsx' % (date_from, date_to),
+            'datas_fname': 'presupuesto_%s_%s_%s.xlsx' % (name, _date_from, _date_to),
             'res_model': self.budget_id._name,
             'res_id': self.budget_id.id,
             'type': 'binary'
