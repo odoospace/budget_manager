@@ -27,6 +27,7 @@ class XLSXWizard(models.TransientModel):
     budget_id = fields.Many2one('crossovered.budget', string="Budget", required=True)
     date_from = fields.Date(required=True)
     date_to = fields.Date(required=True)
+    incoming_bypass = fields.Boolean(default=False)
 
 
     @api.one
@@ -300,9 +301,14 @@ class XLSXWizard(models.TransientModel):
         y_total = y
         y += 2
 
+
         # special INCOMING part
         # TODO: refactorize this!
         row = 'Ingresos'
+        
+        if not groups.has_key(row) and (self.incoming_bypass or self.budget_id.zero_incoming):
+            groups[row] = {}
+        
         worksheet.merge_range(y, x_total-3, y, x_total-1, row.upper(), _yellow )
         #worksheet.set_column(x_total-1, x_total-1, 40)
         #worksheet.write(y, x_total-1, row.upper(), _yellow)

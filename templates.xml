@@ -10,6 +10,7 @@
                     <field name="budget_id" invisible="1"/>
                     <field name="date_from"/>
                     <field name="date_to"/>
+                    <field name="incoming_bypass"/>
                 </group>
                 <footer>
                     <button name="run_export_xlsx" string="Export" type="object" class="oe_highlight"/>
@@ -44,6 +45,7 @@
             <xpath expr="//field[@name='company_id']" position="after"> 
                <field name="segment_id"/>
                <field name="segment"/>
+               <field name="zero_incoming"/>
             </xpath> 
             <xpath expr="//page[@string='Budget Lines']" position="after">
               <page string="Budget Lines Manager">

@@ -87,6 +87,7 @@ class crossovered_budget(models.Model):
         domain=_domain_segment)
     segment = fields.Char(related='segment_id.segment', readonly=True)
     segment_user_id = fields.Many2one('res.users', compute='_segment_user_id', search=_search_segment_user)
+    zero_incoming = fields.Boolean(default=False)
 
 
     def manage_crossovered_budget_lines(self):
