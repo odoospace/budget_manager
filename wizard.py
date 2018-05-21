@@ -199,8 +199,8 @@ class XLSXWizard(models.TransientModel):
         y = 0
         x = 1
         worksheet.set_column(0, 0, 40)
-        date_from = datetime.strptime(self.date_from, '%Y-%m-%d').strftime('%d/%m/%y')
-        date_to = datetime.strptime(self.date_to, '%Y-%m-%d').strftime('%d/%m/%y')
+        date_from = datetime.strptime(_date_from, '%Y-%m-%d').strftime('%d/%m/%y')
+        date_to = datetime.strptime(_date_to, '%Y-%m-%d').strftime('%d/%m/%y')
         name = '%s (%s - %s)' % (self.budget_id.name, date_from, date_to)
         worksheet.write(y, 0, name, _yellow)
         for column in XX:
