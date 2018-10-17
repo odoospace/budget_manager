@@ -4,3 +4,4 @@ import models
 import segment
 import analytic
 import wizard
+import wizard_group

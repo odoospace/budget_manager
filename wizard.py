@@ -10,6 +10,8 @@ import string
 import xlsxwriter
 import base64
 import collections
+import time
+
 # TODO: more general use...
 G = {
     False: 'No asignado',
@@ -32,10 +34,14 @@ class XLSXWizard(models.TransientModel):
 
     @api.one
     def run_export_xlsx(self):
-
-        print self.date_from, self.date_to
         # adjust dates internally
         # TODO: use odoo stuff for dates
+
+        _acc_ids = {}
+
+        lasttime = time.clock()
+        print 'A', 0
+
         _date_to = self.date_to
         _date_from = self.date_from
         date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
@@ -44,8 +50,6 @@ class XLSXWizard(models.TransientModel):
         last_day = monthrange(date_to.year, date_to.month)[1]
         self.date_from = datetime(date_from.year, date_from.month, 1).strftime('%Y-%m-%d')
         self.date_to = datetime(date_to.year, date_to.month, last_day).strftime('%Y-%m-%d')
-
-        print self.date_from, self.date_to
 
         # prepare groups
         groups = {}
@@ -71,6 +75,9 @@ class XLSXWizard(models.TransientModel):
 
                 groups[group][account_name][first_parent].append((1,line))
 
+        
+        print 'B', time.clock() - lasttime
+        lasttime = time.clock()
 
         # get data from analytic to prepare virtual groups
         _anaylitic_lines = self.env['account.analytic.line'].search([
@@ -88,12 +95,26 @@ class XLSXWizard(models.TransientModel):
                 analytic_lines.append(line.id)
                 analytic_lines_obj.append(line)
 
+        print 'C', time.clock() - lasttime
+        lasttime = time.clock()
+
         account_obj = self.pool.get('account.account')
+        print 'lines:', len(self.budget_id.crossovered_budget_line)
         for line in self.budget_id.crossovered_budget_line:
             acc_ids = [x.id for x in line.general_budget_id.account_ids]
+            #print 'C/1', time.clock() - lasttime
+            #lasttime = time.clock()
             if not acc_ids:
                 raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
-            acc_ids = account_obj._get_children_and_consol(self._cr, self._uid, acc_ids)
+            #print 'acc_ids/1', len(acc_ids)
+            if not str(acc_ids) in _acc_ids:
+                acc_ids_all = account_obj._get_children_and_consol(self._cr, self._uid, acc_ids)
+                _acc_ids[str(acc_ids)] = acc_ids_all
+            else:
+                acc_ids_all = _acc_ids[str(acc_ids)]
+            #print 'acc_ids/2', len(acc_ids)
+            #print 'C/2', time.clock() - lasttime
+            #lasttime = time.clock()
             date_to = line.date_to
             date_from = line.date_from
             segment_id = line.segment_id
@@ -106,38 +127,43 @@ class XLSXWizard(models.TransientModel):
             if line.analytic_account_id.id:
                 SQL = """
                 SELECT a.id, a.amount
-                FROM ((account_analytic_line as a
-                INNER JOIN account_move_line as l ON l.id = a.move_id)
-                INNER JOIN account_move as m ON m.id = l.move_id)
+                FROM account_analytic_line as a
+                INNER JOIN account_move_line as l ON l.id = a.move_id
+                INNER JOIN account_move as m ON m.id = l.move_id
                 WHERE a.account_id = %s
                     AND (a.date between to_date(%s, 'yyyy-mm-dd')
                         AND to_date(%s, 'yyyy-mm-dd'))
                     AND a.general_account_id = ANY(%s)
                     AND m.segment_id = ANY(%s)
                 """
+                
                 #_z = line.analytic_account_id.id, date_from, date_to, list(acc_ids), list(segment_ids)
-                self.env.cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids))
+                #print 'params:', line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids 
+                self.env.cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids_all, segment_ids))
+                #print 'C2', time.clock() - lasttime
+                #lasttime = time.clock()
+                
                 result = self.env.cr.fetchall()
+                #print 'C/3', time.clock() - lasttime
+                #lasttime = time.clock()
                 #print '>>>', result
                 for res in result:
                     #print res
                     if res[0] in analytic_lines:
                         #print 'removed!!!'
                         analytic_lines.remove(res[0])
+            
+            #print 'C1', time.clock() - lasttime
+            #lasttime = time.clock()
+
+        print 'D', time.clock() - lasttime
+        lasttime = time.clock()
 
         #print len(anaylitic_lines)
         lines = self.env['account.analytic.line'].search([
             ('id', 'in', analytic_lines)
         ])
         for l in lines:
-            #print '%s,"%s","%s",%s,"%s",%s,"%s","%s","%s"' % (
-            #    l.id, l.date, l.name, l.amount, l.account_id.name,
-            #    l.account_id.level,
-            #    l.move_id.name, l.account_id.group,
-            #    l.account_id.first_parent().name
-            #)
-            print l, l.id, l.name
-            print l.account_id
             level = l.account_id.level
             if level <= 2:
                 group = G[l.account_id.group]
@@ -160,6 +186,10 @@ class XLSXWizard(models.TransientModel):
                 groups[group][account_name][first_parent] = []
             #print group, account_name, first_parent
             groups[group][account_name][first_parent].append((2, l))
+
+
+        print 'E', time.clock() - lasttime
+        lasttime = time.clock()
 
         # reordered X
         XX = []
@@ -246,6 +276,7 @@ class XLSXWizard(models.TransientModel):
                     x = i * 2 + 1
                     if groups[row][line].has_key(column):
                         for ttype, l in groups[row][line][column]:
+
                             if ttype == 1:
                                 # from budget
                                 planned_amount += l.planned_amount
@@ -263,25 +294,25 @@ class XLSXWizard(models.TransientModel):
                     x0 = i * 2 + 1
                     cell_range_planned += '%s+' % xl_rowcol_to_cell(y, x0)
                     cell_range_practical += '%s+' % xl_rowcol_to_cell(y, x0+1)
-                worksheet.write_formula(y, x+2, '{=%s}' % cell_range_planned[:-1], _money)
-                worksheet.write_formula(y, x+3, '{=%s}' % cell_range_practical[:-1], _silver_money)
+                worksheet.write_formula(y, x+2, '=%s' % cell_range_planned[:-1], _money)
+                worksheet.write_formula(y, x+3, '=%s' % cell_range_practical[:-1], _silver_money)
                 # add %
                 cell_planned = xl_rowcol_to_cell(y, x+2)
                 cell_practical = xl_rowcol_to_cell(y, x+3)
-                worksheet.write_formula(y, x+4, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _porcentage)
+                worksheet.write_formula(y, x+4, '=(%s/%s-1)*100' % (cell_practical, cell_planned), _porcentage)
                 y += 1
             # add Y total
             worksheet.write(y, 0, 'TOTAL %s' % row.upper(), _gray)
             for i in range(len(XX)+1): # add X total column too
                 x = i * 2 + 1
                 cell_range = xl_range(y0, x, y-1, x)
-                worksheet.write_formula(y, x, '{=SUM(%s)}' % cell_range, _gray_money)
+                worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _gray_money)
                 cell_range = xl_range(y0, x+1, y-1, x+1)
-                worksheet.write_formula(y, x+1, '{=SUM(%s)}' % cell_range, _gray_money)
+                worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _gray_money)
                 # add %
                 cell_planned = xl_rowcol_to_cell(y, x)
                 cell_practical = xl_rowcol_to_cell(y, x+1)
-                worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _gray_porcentage)
+                worksheet.write_formula(y, x+2, '=(%s/%s-1)*100' % (cell_practical, cell_planned), _gray_porcentage)
             y += 1
 
         # total
@@ -290,17 +321,16 @@ class XLSXWizard(models.TransientModel):
         for i in range(len(XX)+1):
             x = i * 2 + 1
             cell_range = xl_range(1, x, y-1, x)
-            worksheet.write_formula(y, x, '{=SUM(%s)/2}' % cell_range, _blue_money)
+            worksheet.write_formula(y, x, '=SUM(%s)/2' % cell_range, _blue_money)
             cell_range = xl_range(1, x+1, y-1, x+1)
-            worksheet.write_formula(y, x+1, '{=SUM(%s)/2}' % cell_range, _blue_money)
+            worksheet.write_formula(y, x+1, '=SUM(%s)/2' % cell_range, _blue_money)
             # add %
             cell_planned = xl_rowcol_to_cell(y, x)
             cell_practical = xl_rowcol_to_cell(y, x+1)
-            worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
+            worksheet.write_formula(y, x+2, '=(%s/%s-1)*100' % (cell_practical, cell_planned), _blue_porcentage)
 
         y_total = y
         y += 2
-
 
         # special INCOMING part
         # TODO: refactorize this!
@@ -341,32 +371,32 @@ class XLSXWizard(models.TransientModel):
             # add %
             cell_planned = xl_rowcol_to_cell(y, x_total)
             cell_practical = xl_rowcol_to_cell(y, x_total+1)
-            worksheet.write_formula(y, x+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _porcentage)
+            worksheet.write_formula(y, x+2, '=(%s/%s-1)*100' % (cell_practical, cell_planned), _porcentage)
             y += 1
 
         # total 'Ingresos'
         y += 1 # empty line
         worksheet.merge_range(y, x_total-3, y, x_total-1, 'TOTAL %s' % row.upper(), _blue)
         cell_range = xl_range(y_income, x_total, y-1, x_total)
-        worksheet.write_formula(y, x_total, '{=SUM(%s)}' % cell_range, _blue_money)
+        worksheet.write_formula(y, x_total, '=SUM(%s)' % cell_range, _blue_money)
         cell_range = xl_range(y_income, x_total+1, y-1, x_total+1)
-        worksheet.write_formula(y, x_total+1, '{=SUM(%s)}' % cell_range, _blue_money)
+        worksheet.write_formula(y, x_total+1, '=SUM(%s)' % cell_range, _blue_money)
         # add %
         cell_planned = xl_rowcol_to_cell(y, x_total)
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
-        worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _blue_porcentage)
+        worksheet.write_formula(y, x_total+2, '=(%s/%s-1)*100' % (cell_practical, cell_planned), _blue_porcentage)
 
         # supertotal!
         y += 2 # empty line
         worksheet.merge_range(y, x_total-3, y, x_total-1, 'REMANENTE', _red_total)
         cell_range_planned = '%s+%s' % (xl_rowcol_to_cell(y_total, x_total), xl_rowcol_to_cell(y-2, x_total))
         cell_range_practical = '%s+%s' % (xl_rowcol_to_cell(y_total, x_total+1), xl_rowcol_to_cell(y-2, x_total+1))
-        worksheet.write_formula(y, x_total, '{=%s}' % cell_range_planned, _red_money)
-        worksheet.write_formula(y, x_total+1, '{=%s}' % cell_range_practical, _red_money)
+        worksheet.write_formula(y, x_total, '=%s' % cell_range_planned, _red_money)
+        worksheet.write_formula(y, x_total+1, '=%s' % cell_range_practical, _red_money)
         # add %
         cell_planned = xl_rowcol_to_cell(y, x_total)
         cell_practical = xl_rowcol_to_cell(y, x_total+1)
-        worksheet.write_formula(y, x_total+2, '{=(%s/%s-1)*100}' % (cell_practical, cell_planned), _red_porcentage)
+        worksheet.write_formula(y, x_total+2, '=(%s/%s-1)*100' % (cell_practical, cell_planned), _red_porcentage)
 
 
         # new worksheet with analytic lines!!!
@@ -422,9 +452,11 @@ class XLSXWizard(models.TransientModel):
             worksheet_lines.write(y, 10, line.amount, _money)
             y += 1
 
-
         # close it
         workbook.close()
+
+        print 'F', time.clock() - lasttime
+        lasttime = time.clock()
 
         # Rewind the buffer.
         xlsxfile.seek(0)
@@ -438,6 +470,9 @@ class XLSXWizard(models.TransientModel):
             'type': 'binary'
         }
         attachment_id = self.env['ir.attachment'].create(vals)
+
+        print 'G', time.clock() - lasttime
+        lasttime = time.clock()
 
         return True
 

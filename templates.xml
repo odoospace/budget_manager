@@ -1,6 +1,6 @@
 <openerp>
     <data>
-    <!-- BEGIN Wizard -->
+    <!-- BEGIN Wizard for a budget -->
     <record model="ir.ui.view" id="budget_manager_xlsxwizard_form">
         <field name="name">budget_manager.xlsxwizard</field>
         <field name="model">budget_manager.xlsxwizard</field>
@@ -13,12 +13,34 @@
                     <field name="incoming_bypass"/>
                 </group>
                 <footer>
-                    <button name="run_export_xlsx" string="Export" type="object" class="oe_highlight"/>
+                    <button string="Export" class="oe_highlight" type="object" name="run_export_xlsx"/>
                     <button string="Cancel" class="oe_link" special="cancel"/>
                 </footer>
             </form>
         </field>
     </record>
+    <!-- BEGIN Wizard for a budget -->
+
+        <!-- BEGIN Wizard for a group budget -->
+    <record model="ir.ui.view" id="budget_manager_group_xlsxwizard_form">
+        <field name="name">budget_manager.group.xlsxwizard</field>
+        <field name="model">budget_manager.group.xlsxwizard</field>
+        <field name="arch" type="xml">
+            <form string="Export group of budgets to Excel">
+                <group>
+                    <field name="group_id" invisible="1"/>
+                    <field name="date_from"/>
+                    <field name="date_to"/>
+                    <field name="incoming_bypass"/>
+                </group>
+                <footer>
+                    <button string="Export" class="oe_highlight" type="object" name="run_export_xlsx"/>
+                    <button string="Cancel" class="oe_link" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <!-- BEGIN Wizard for a group budget -->
     
     <!--
     <record id="open_budget_manager_xlsxwizard_action" model="ir.actions.act_window">
@@ -40,7 +62,7 @@
         <field name="inherit_id" ref="account_budget.crossovered_budget_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//button[@name='confirm']" position="after">
-                <button name="export_xlsxwizard" type="object" string="Export XLSX"/>
+                <button name="export_xlsxwizard" type="object" string="Export to XLSX"/>
             </xpath>
             <xpath expr="//field[@name='company_id']" position="after"> 
                <field name="segment_id"/>
@@ -87,6 +109,56 @@
     </record>
     <!-- END INHERIT account.analytic.account form -->
 
+    <record model="ir.ui.view" id="view_crossovered_budget_group_tree">
+        <field name="name">crossovered.budget.group.tree</field>
+        <field name="model">crossovered.budget.group</field>
+        <field name="arch" type="xml">
+            <tree string="Grouped budget">
+                <field name="name"/>
+                <field name="budget_ids"/>
+            </tree>
+        </field>
+    </record>
+
+        <record model="ir.ui.view" id="view_crossovered_budget_group_form">
+        <field name="name">crossovered.budget.group.form</field>
+        <field name="model">crossovered.budget.group</field>
+        <field name="arch" type="xml">
+            <form string="Grouped budget">
+                <header>
+                <!--The oe_highlight class gives the button a red color when it is saved.
+                It is usually used to indicate the expected behaviour. -->
+                <button string="Export to XLSX" type="object" name="export_xlsxwizard" class="oe_highlight"/>
+                </header>
+                <group>
+                    <field name="name"/>
+                    <field name="budget_ids"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
+    <record model="ir.actions.act_window" id="act_crossovered_budget_group_view">
+        <field name="name">Grouped Budgets</field>
+        <field name="res_model">crossovered.budget.group</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">tree,form</field>
+        <!-->
+        <field name="view_id" ref="view_crossovered_budget_group_tree"/>
+        <field name="search_view_id" ref="view_crossovered_budget_search"/>
+        -->
+        <field name="help" type="html">
+        <p class="oe_view_nocontent_create">
+            Click to create a new grouped budget.
+        </p>
+        </field>
+    </record>
+
+    <!-- BEGIN menu -->
+    <menuitem parent="account_budget.next_id_31"
+        id="menu_act_crossovered_budget_group_view"
+        action="act_crossovered_budget_group_view" sequence="10" />
+    <!-- END menu -->
     
     </data>
 </openerp>

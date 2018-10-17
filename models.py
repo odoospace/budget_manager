@@ -88,6 +88,7 @@ class crossovered_budget(models.Model):
     segment = fields.Char(related='segment_id.segment', readonly=True)
     segment_user_id = fields.Many2one('res.users', compute='_segment_user_id', search=_search_segment_user)
     zero_incoming = fields.Boolean(default=False)
+    group_ids = fields.Many2many('crossovered.budget.group', 'budget_ids')
 
 
     def manage_crossovered_budget_lines(self):
@@ -182,10 +183,11 @@ class crossovered_budget_lines(models.Model):
     budget_manager_line_id = fields.Many2one('budget_manager.line')
     segment_id = fields.Many2one(related='crossovered_budget_id.segment_id', store=True)
     segment = fields.Char(related='crossovered_budget_id.segment', store=True)
-
+    
     def _prac_amt(self, cr, uid, ids, context=None):
         # TODO: remove old segment dependency
         res = {}
+        _acc_ids = {}
         if context is None:
             context = {}
         account_obj = self.pool.get('account.account')
@@ -194,7 +196,12 @@ class crossovered_budget_lines(models.Model):
             acc_ids = [x.id for x in line.general_budget_id.account_ids]
             if not acc_ids:
                 raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
-            acc_ids = account_obj._get_children_and_consol(cr, uid, acc_ids, context=context)
+            if not str(acc_ids) in _acc_ids:
+                acc_ids_all = account_obj._get_children_and_consol(cr, uid, acc_ids, context=context)
+                _acc_ids[str(acc_ids)] = acc_ids_all
+            else:
+                acc_ids_all = _acc_ids[str(acc_ids)]
+            
             date_to = line.date_to
             date_from = line.date_from
             segment_id = line.segment_id
@@ -207,9 +214,9 @@ class crossovered_budget_lines(models.Model):
             if line.analytic_account_id.id:
                 SQL = """
                 SELECT a.id, a.name, a.amount 
-                FROM ((account_analytic_line as a
-                INNER JOIN account_move_line as l ON l.id = a.move_id)
-                INNER JOIN account_move as m ON m.id = l.move_id)
+                FROM account_analytic_line as a
+                INNER JOIN account_move_line as l ON l.id = a.move_id
+                INNER JOIN account_move as m ON m.id = l.move_id
                 WHERE a.account_id = %s
                     AND (a.date between to_date(%s, 'yyyy-mm-dd')
                         AND to_date(%s, 'yyyy-mm-dd')) 
@@ -220,16 +227,22 @@ class crossovered_budget_lines(models.Model):
                 # TODO: add more lower leves (childs of childs)
                 #analytic_ids = self.pool.get('account.analytic.account').search(cr, uid, [('parent_id', '=', line.analytic_account_id.id)])
                 #analytic_ids += [line.analytic_account_id.id]
-                cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids))
+                cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids_all, segment_ids))
                 _result = cr.fetchall()
-                for i in _result:
-                    print  i
+                #for i in _result:
+                #    print  i
                 result = sum([i[2] for i in _result])
                 if result is None:
                     result = 0.0
 
             res[line.id] = result
         #print res
+        return res
+    
+    def _prac(self, cr, uid, ids, name, args, context=None):
+        res={}
+        #for line in self.browse(cr, uid, ids, context=context):
+        res = self._prac_amt(cr, uid, ids, context=context)
         return res
 
 class budget_manager_line(models.Model):
@@ -264,3 +277,29 @@ class budget_manager_line(models.Model):
     date_to = fields.Date('End Date', required=True)
     planned_amount = fields.Float('Planned Amount', required=True) #, digits=dp.get_precision('Account')),
     company_id = fields.Many2one(related = 'crossovered_budget_id.company_id', store=True)
+
+
+class crossovered_budget_group(models.Model):
+    _name = 'crossovered.budget.group'
+
+    @api.multi
+    def export_xlsxwizard(self, context=None):
+        # https://stackoverflow.com/questions/30180535/odoo-8-launch-a-ir-actions-act-window-from-a-python-method
+        self.ensure_one()
+        if context is None: context = {}
+        context['default_budget_id'] = self.id # !important
+        res = {
+            'name':"Export to Excel",
+            'view_mode': 'form',
+            'view_type': 'form',
+            'res_model': 'budget_manager.group.xlsxwizard',
+            'type': 'ir.actions.act_window',
+            'nodestroy': True,
+            'target': 'new',
+            'domain': '[]',
+            'context': context
+        }
+        return res
+
+    name = fields.Char()
+    budget_ids = fields.Many2many('crossovered.budget', 'group_ids')
