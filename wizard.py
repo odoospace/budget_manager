@@ -40,7 +40,6 @@ class XLSXWizard(models.TransientModel):
         _acc_ids = {}
 
         lasttime = time.clock()
-        print 'A', 0
 
         _date_to = self.date_to
         _date_from = self.date_from
@@ -75,10 +74,6 @@ class XLSXWizard(models.TransientModel):
 
                 groups[group][account_name][first_parent].append((1,line))
 
-        
-        print 'B', time.clock() - lasttime
-        lasttime = time.clock()
-
         # get data from analytic to prepare virtual groups
         _anaylitic_lines = self.env['account.analytic.line'].search([
             ('date', '>=', self.date_from),
@@ -95,15 +90,11 @@ class XLSXWizard(models.TransientModel):
                 analytic_lines.append(line.id)
                 analytic_lines_obj.append(line)
 
-        print 'C', time.clock() - lasttime
-        lasttime = time.clock()
-
         account_obj = self.pool.get('account.account')
         print 'lines:', len(self.budget_id.crossovered_budget_line)
         for line in self.budget_id.crossovered_budget_line:
             acc_ids = [x.id for x in line.general_budget_id.account_ids]
-            #print 'C/1', time.clock() - lasttime
-            #lasttime = time.clock()
+
             if not acc_ids:
                 raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
             #print 'acc_ids/1', len(acc_ids)
@@ -112,9 +103,7 @@ class XLSXWizard(models.TransientModel):
                 _acc_ids[str(acc_ids)] = acc_ids_all
             else:
                 acc_ids_all = _acc_ids[str(acc_ids)]
-            #print 'acc_ids/2', len(acc_ids)
-            #print 'C/2', time.clock() - lasttime
-            #lasttime = time.clock()
+
             date_to = line.date_to
             date_from = line.date_from
             segment_id = line.segment_id
@@ -140,24 +129,14 @@ class XLSXWizard(models.TransientModel):
                 #_z = line.analytic_account_id.id, date_from, date_to, list(acc_ids), list(segment_ids)
                 #print 'params:', line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids 
                 self.env.cr.execute(SQL, (line.analytic_account_id.id, date_from, date_to, acc_ids_all, segment_ids))
-                #print 'C2', time.clock() - lasttime
-                #lasttime = time.clock()
                 
                 result = self.env.cr.fetchall()
-                #print 'C/3', time.clock() - lasttime
-                #lasttime = time.clock()
-                #print '>>>', result
+
                 for res in result:
                     #print res
                     if res[0] in analytic_lines:
                         #print 'removed!!!'
                         analytic_lines.remove(res[0])
-            
-            #print 'C1', time.clock() - lasttime
-            #lasttime = time.clock()
-
-        print 'D', time.clock() - lasttime
-        lasttime = time.clock()
 
         #print len(anaylitic_lines)
         lines = self.env['account.analytic.line'].search([
@@ -187,15 +166,17 @@ class XLSXWizard(models.TransientModel):
             #print group, account_name, first_parent
             groups[group][account_name][first_parent].append((2, l))
 
-
-        print 'E', time.clock() - lasttime
-        lasttime = time.clock()
-
         # reordered X
         XX = []
-        for item in [
-            'SALARIOS', 'MATERIALES', 'SERVICIOS EXTERNOS',
-            'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS']:
+        if not self.budget_id.segment_id.is_campaign:
+            refs = [
+                'SALARIOS', 'MATERIALES', 'SERVICIOS EXTERNOS',
+                'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS'
+            ]
+        else:
+            refs = ['GASTOS']
+    
+        for item in refs:
             if item in X:
                 XX.append(item)
 
@@ -332,6 +313,8 @@ class XLSXWizard(models.TransientModel):
         y_total = y
         y += 2
 
+        print '-->', y, x_total-3, x_total-1
+
         # special INCOMING part
         # TODO: refactorize this!
         row = 'Ingresos'
@@ -455,9 +438,6 @@ class XLSXWizard(models.TransientModel):
         # close it
         workbook.close()
 
-        print 'F', time.clock() - lasttime
-        lasttime = time.clock()
-
         # Rewind the buffer.
         xlsxfile.seek(0)
         name = self.budget_id.name.lower().replace(' ', '_')
@@ -470,9 +450,6 @@ class XLSXWizard(models.TransientModel):
             'type': 'binary'
         }
         attachment_id = self.env['ir.attachment'].create(vals)
-
-        print 'G', time.clock() - lasttime
-        lasttime = time.clock()
 
         return True
 
