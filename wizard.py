@@ -174,7 +174,7 @@ class XLSXWizard(models.TransientModel):
                 'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS'
             ]
         else:
-            refs = []
+            refs = ['GASTOS']
     
         for item in refs:
             if item in X:
