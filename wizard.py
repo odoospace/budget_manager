@@ -31,28 +31,17 @@ class XLSXWizard(models.TransientModel):
     date_to = fields.Date(required=True)
     incoming_bypass = fields.Boolean(default=False)
 
-
-    @api.one
-    def run_export_xlsx(self):
-        # adjust dates internally
-        # TODO: use odoo stuff for dates
-
+    def process_data(self, date_from, date_to):
+        # prepare groups
         _acc_ids = {}
-
-        lasttime = time.clock()
-
-        _date_to = self.date_to
-        _date_from = self.date_from
-        date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
-        date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
+        groups = {}
+        X = []
+        XX = []
 
         last_day = monthrange(date_to.year, date_to.month)[1]
         self.date_from = datetime(date_from.year, date_from.month, 1).strftime('%Y-%m-%d')
         self.date_to = datetime(date_to.year, date_to.month, last_day).strftime('%Y-%m-%d')
 
-        # prepare groups
-        groups = {}
-        X = []
         # get data from budget lines
         for line in self.budget_id.crossovered_budget_line:
             # check dates
@@ -167,7 +156,6 @@ class XLSXWizard(models.TransientModel):
             groups[group][account_name][first_parent].append((2, l))
 
         # reordered X
-        XX = []
         if not self.budget_id.segment_id.is_campaign:
             refs = [
                 'SALARIOS', 'MATERIALES', 'SERVICIOS EXTERNOS',
@@ -179,6 +167,26 @@ class XLSXWizard(models.TransientModel):
         for item in refs:
             if item in X:
                 XX.append(item)
+        
+        return X, XX, groups, analytic_lines, analytic_lines_obj
+
+
+    @api.one
+    def run_export_xlsx(self):
+        # adjust dates internally
+        # TODO: use odoo stuff for dates
+
+        _date_to = self.date_to
+        _date_from = self.date_from
+        date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
+        date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
+
+        X, XX, groups, analytic_lines, analytic_lines_obj = self.process_data(date_from, date_to)
+
+        print 'X:', X
+        print 'XX:', XX
+        print 'groups:', groups
+        
 
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
