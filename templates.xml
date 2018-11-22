@@ -28,7 +28,7 @@
         <field name="arch" type="xml">
             <form string="Export group of budgets to Excel">
                 <group>
-                    <field name="group_id" invisible="1"/>
+                    <field name="group_id" invisible="0"/>
                     <field name="date_from"/>
                     <field name="date_to"/>
                     <field name="incoming_bypass"/>
