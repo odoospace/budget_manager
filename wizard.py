@@ -75,7 +75,7 @@ class XLSXWizard(models.TransientModel):
                 groups[group][account_name][first_parent].append((1,line))
 
         # get data from analytic to prepare virtual groups
-        _anaylitic_lines = self.env['account.analytic.line'].search([
+        _anaylitic_lines = self.env['account.analytic.line'].sudo().search([
             ('date', '>=', self.date_from),
             ('date', '<=', self.date_to),
             ('company_id', '=', self.budget_id.company_id.id),
@@ -139,7 +139,7 @@ class XLSXWizard(models.TransientModel):
                         analytic_lines.remove(res[0])
 
         #print len(anaylitic_lines)
-        lines = self.env['account.analytic.line'].search([
+        lines = self.env['account.analytic.line'].sudo().search([
             ('id', 'in', analytic_lines)
         ])
         for l in lines:
