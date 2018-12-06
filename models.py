@@ -57,6 +57,11 @@ class crossovered_budget(models.Model):
     segment = fields.Char(related='segment_id.segment', readonly=True)
     segment_user_id = fields.Many2one('res.users', compute='_segment_user_id', search=_search_segment_user)
     zero_incoming = fields.Boolean(default=False)
+    category = fields.Selection([
+        ('CCE', 'Estatal'),
+        ('CCA', 'Autonómico'),
+        ('CCM', 'Municipal')
+    ])
     group_ids = fields.Many2many('crossovered.budget.group', 'budget_ids')
 
 

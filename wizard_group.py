@@ -44,14 +44,167 @@ class XLSXWizard(models.TransientModel):
             'Ingresos': (0, 0),
             'Salarios': (0, 0),
         }
+
+        # predefine columns
+        COLUMNS = {
+            'Gastos': [],
+            'Ingresos': [],
+            'Salarios': [],
+            # Gastos
+            'Unidades Funcionales y CCE': [],
+            'Alquiler y Gastos de Oficiana': [],
+            'Asignaciones Autonómicas y Municipales': [],
+            'Otros': [],
+            # Ingresos
+            'Aportaciones GP': [],
+            'Aportaciones Cargos Públicos': [],
+            'Colaboraciones Adscritas': [],
+            'Subvenciones': [],
+            'Otros': []
+        }
+
+        # [level, topic]
+        MAPPING = {
+            3: {
+                'INGRESOS': 'Ingresos'
+            },
+            2: {
+                'Gastos Secretarias': {
+                    '*': 'Unidades Funcionales y CCE'
+                },
+                'Gastos Areas y Equipos': {
+                    '*': 'Unidades Funcionales y CCE'
+                },
+                'Gastos Generales': {
+                    'ACTOS VARIOS': 'Unidades Funcionales y CCE',
+                    'CONSEJO ESTATAL CCE': 'Unidades Funcionales y CCE',
+                    'CONSULTAS CIUDADANAS': 'Unidades Funcionales y CCE',
+                    'CONSEJO AUTONOMICO': 'Unidades Funcionales y CCE'
+                },
+                'Gastos Extraordinarios': {
+                    'DESARROLLO PARTICIPA': 'Unidades Funcionales y CCE',
+                    'ESTUDIOS DEMOSCOPICOS': 'Unidades Funcionales y CCE',
+                    'FONDO ANUAL ACTIVIDADES': 'Unidades Funcionales y CCE',
+                    'ORDENADORES': 'Unidades Funcionales y CCE',
+                    'PROYECTOS AREAS': 'Unidades Funcionales y CCE',
+                    'PROYECTOS SOCIALES': 'Unidades Funcionales y CCE'
+                }
+            }
+        }
+        
+        total_planned_amount = {}
+        total_practical_amount = {}
+
         for i in self.group_id.budget_ids:
-            
-            vals = {'budget_id': i.id, 'date_from': date_from, 'date_to': date_to}
+            vals = {
+                'budget_id': i.id, 
+                'date_from': date_from,
+                'date_to': date_to
+            }
             budget_wiz = self.env['budget_manager.xlsxwizard'].create(vals)
+            # get data from detail budget report
             X, XX, groups, analytic_lines, analytic_lines_obj = budget_wiz.process_data(date_from, date_to)
             results[i.id] = (X, XX, groups, analytic_lines, analytic_lines_obj)
             print i.name, groups.keys()
-            # print groups
+
+            # add keys
+            total_planned_amount[i] = dict([item, 0] for item in COLUMNS.keys())
+            total_practical_amount[i] = dict([item, 0] for item in COLUMNS.keys())
+ 
+
+            for k1, l1 in groups.items(): # level 1                  
+                for k2, l2 in l1.items(): # level 2
+                    for k3, l3 in l2.items(): # level 3
+                        print 'k1:', k1, 'k2:', k2, 'k3:', k3
+                        # check mapping for level 3
+                        for m in MAPPING[3]: 
+                            if k3 == m:
+                                column = MAPPING[3][m]
+                                for ttype, v in l3:
+                                    print i, column, '...'
+                                    if ttype == 1:
+                                        total_planned_amount[i][column] += v.planned_amount
+                                        total_practical_amount[i][column] += v.practical_amount
+                                    else:
+                                        total_practical_amount[i][column] += v.amount
+                        # check mapping for level 2
+                        for m in MAPPING[2]: 
+                            for n in MAPPING[2][m]:
+                                print '>>>', m, n
+                                if (n == '*' and k1 == m) or (k1 == m and k2 == n):
+                                    column = MAPPING[2][m][n]
+                                    for ttype, v in l3:
+                                        print i, column, '...'
+                                        if ttype == 1:
+                                            total_planned_amount[i][column] += v.planned_amount
+                                            total_practical_amount[i][column] += v.practical_amount
+                                        else:
+                                            total_practical_amount[i][column] += v.amount
+
+                        # check mapping for level 2
+                        #for m, n in MAPPINGS[2]:
+                        #    for o, p in .items():
+                        #        if o == '*' and :
+                        #            print n, l3
+            stop
+            
+            #UNIDADES FUNCIONALES
+            GROUPS = {
+                'Gastos Secretarias': [],
+                'Gastos Areas y Equipos': [],
+                'Gastos Generales': [
+                    'ACTOS VARIOS',
+                    'CONSEJO ESTATAL CCE',
+                    'CONSULTAS CIUDADANAS',
+                    'CONSEJO AUTONOMICO'
+                ],
+                'Gastos Extraordinarios': [
+                    'DESARROLLO PARTICIPA',
+                    'ESTUDIOS DEMOSCOPICOS',
+                    'FONDO ANUAL ACTIVIDADES',
+                    'ORDENADORES',
+                    'PROYECTOS AREAS',
+                    'PROYECTOS SOCIALES',
+                ]
+            }
+
+            for k, l1 in groups.items():
+                if k in GROUPS:
+                    for k2, l2 in l1.items():
+                        if (k2 in GROUPS[k]) or not GROUPS[k]: 
+                            print k, k2
+                            planned_amount = 0
+                            practical_amount = 0
+                            for l3 in l2.values():
+                                for l in l3: 
+                                    ttype = l[0]
+                                    line = l[1]
+                                    # print k
+                                    if ttype == 1:
+                                        planned_amount += line.planned_amount
+                                        practical_amount += line.practical_amount
+                                    else:
+                                        practical_amount += line.amount
+                            print 'planned_amount:', planned_amount
+                            print 'practical_amount:', practical_amount
+                            total_planned_amount += planned_amount
+                            total_practical_amount += practical_amount
+            print 'total planned_amount:', total_planned_amount
+            print 'total practical_amount:', total_practical_amount
+
+
+            # INGRESOS
+            for j in groups['Ingresos'].values():
+                # print j
+                for k in j['INGRESOS']:
+                    # print k
+                    if k[0] == 1:
+                        total_planned_amount += k[1].planned_amount
+                        total_practical_amount += k[1].practical_amount
+                    else:
+                        total_practical_amount += k[1].amount
+            print 'total planned_amount:', total_planned_amount
+            print 'total practical_amount:', total_practical_amount
 
 
             #UNIDADES FUNCIONALES
@@ -101,20 +254,7 @@ class XLSXWizard(models.TransientModel):
             print 'total practical_amount:', total_practical_amount
 
             
-            #INGRESOS
-            # total_planned_amount = 0
-            # total_practical_amount = 0
-            # for j in groups['Ingresos'].values():
-            #     # print j
-            #     for k in j['INGRESOS']:
-            #         # print k
-            #         if k[0] == 1:
-            #             total_planned_amount += k[1].planned_amount
-            #             total_practical_amount += k[1].practical_amount
-            #         else:
-            #             total_practical_amount += k[1].amount
-            # print 'total planned_amount:', total_planned_amount
-            # print 'total practical_amount:', total_practical_amount
+            
 
             #SALARIOS
             # total_planned_amount = 0
