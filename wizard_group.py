@@ -46,48 +46,73 @@ class XLSXWizard(models.TransientModel):
         }
 
         # predefine columns
-        COLUMNS = {
-            'Gastos': [],
-            'Ingresos': [],
-            'Salarios': [],
+        # each name of column have to be unique (Otros-, Otros+)
+        COLUMNS = [
+            ('Gastos', ['CCE', 'CCA', 'CCM']),
+            ('Ingresos', ['CCE', 'CCA', 'CCM']),
+            ('Salarios', ['CCE', 'CCA', 'CCM']),
             # Gastos
-            'Unidades Funcionales y CCE': [],
-            'Alquiler y Gastos de Oficiana': [],
-            'Asignaciones Autonómicas y Municipales': [],
-            'Otros': [],
+            ('Unidades Funcionales y CCE', ['CCE']),
+            ('Unidades Funcionales y CCA', ['CCA']),
+            ('Unidades Funcionales y CCM', ['CCM']),
+            ('Alquiler y Gastos de Oficina', ['CCE', 'CCA', 'CCM']),
+            ('Asignaciones Autonómicas y Municipales', ['CCE']),
+            ('Asignaciones Autonómicas y Círculos', ['CCA']),
+            ('Asignaciones Círculos', ['CCA']),
+            ('Otros-', ['CCE', 'CCA', 'CCM']),
             # Ingresos
-            'Aportaciones GP': [],
-            'Aportaciones Cargos Públicos': [],
-            'Colaboraciones Adscritas': [],
-            'Subvenciones': [],
-            'Otros': []
-        }
+            ('Aportaciones GP', ['CCE', 'CCA', 'CCM']),
+            ('Aportaciones Cargos P\xc3\xbablicos', ['CCE', 'CCA', 'CCM']),
+            ('Colaboraciones Adscritas', ['CCE', 'CCA', 'CCM']),
+            ('Subvenciones', ['CCE', 'CCA', 'CCM']), # TODO: review CCA and CCM!!!!
+            ('Estatal', ['CCA', 'CCM']),
+            ('Otros+', ['CCE', 'CCA']),
+            ('CCA', ['CCM'])
+        ]
 
-        # [level, topic]
+        # [level, topic] - %s -> CCA, CCE, CCM
         MAPPING = {
             3: {
-                'INGRESOS': 'Ingresos'
+                'INGRESOS': 'Ingresos',
+                'SALARIOS': 'Salarios'
             },
             2: {
+                'Ingresos': {
+                    'APORTACIONES GP': 'Aportaciones GP',
+                    'APORTACIONES CARGOS PUB.': u'Aportaciones Cargos Públicos',
+                    'CONSEJO AUTONOMICO': 'Otros+', # CCA ?
+                    'ESTATAL': 'Otros+', # Estatal 
+                    'CROWFUNDING': 'Otros+',
+                    'COLABORACIONES ADSCRITAS': 'Colaboraciones Adscritas',
+                    'SUBVENCIONES': 'Subvenciones'
+                },
                 'Gastos Secretarias': {
-                    '*': 'Unidades Funcionales y CCE'
+                    '*': 'Unidades Funcionales y %s'
                 },
                 'Gastos Areas y Equipos': {
-                    '*': 'Unidades Funcionales y CCE'
+                    '*': 'Unidades Funcionales y %s'
                 },
                 'Gastos Generales': {
-                    'ACTOS VARIOS': 'Unidades Funcionales y CCE',
-                    'CONSEJO ESTATAL CCE': 'Unidades Funcionales y CCE',
-                    'CONSULTAS CIUDADANAS': 'Unidades Funcionales y CCE',
-                    'CONSEJO AUTONOMICO': 'Unidades Funcionales y CCE'
+                    'ACTOS VARIOS': 'Unidades Funcionales y %s',
+                    'CONSEJO ESTATAL CCE': 'Unidades Funcionales y %s',
+                    'CONSULTAS CIUDADANAS': 'Unidades Funcionales y %s',
+                    'CONSEJO AUTONOMICO': 'Unidades Funcionales y %s',
+                    'CONSEJO MUNICIPAL': 'Unidades Funcionales y %s',
+                    'CONSULTAS CIUDADANAS': 'Unidades Funcionales y %s',
+                    'ALQUILER Y GASTOS OFICINAS': 'Alquiler y Gastos de Oficina',
+                    'COMISIONES BANCARIAS': 'Otros-',
+                    'ASIGNACIONES AUTONÓMICAS': u'Asignaciones Autonómicas y Municipales',
+                    'ASIGNACIONES MUNICIPALES': u'Asignaciones Autonómicas y Círculos',
+                    'PROVISION CONTINGENCIAS': 'Otros-'
                 },
                 'Gastos Extraordinarios': {
-                    'DESARROLLO PARTICIPA': 'Unidades Funcionales y CCE',
-                    'ESTUDIOS DEMOSCOPICOS': 'Unidades Funcionales y CCE',
-                    'FONDO ANUAL ACTIVIDADES': 'Unidades Funcionales y CCE',
-                    'ORDENADORES': 'Unidades Funcionales y CCE',
-                    'PROYECTOS AREAS': 'Unidades Funcionales y CCE',
-                    'PROYECTOS SOCIALES': 'Unidades Funcionales y CCE'
+                    'DESARROLLO PARTICIPA': 'Unidades Funcionales y %s',
+                    'ESTUDIOS DEMOSCOPICOS': 'Unidades Funcionales y %s',
+                    'FONDO ANUAL ACTIVIDADES': 'Unidades Funcionales y %s',
+                    'ORDENADORES': 'Unidades Funcionales y %s',
+                    'PROYECTOS AREAS': 'Unidades Funcionales y %s',
+                    'PROYECTOS SOCIALES': 'Unidades Funcionales y %s',
+                    'SEDE CENTRAL FCO VILLAESPESA': 'Otros-'
                 }
             }
         }
@@ -96,6 +121,7 @@ class XLSXWizard(models.TransientModel):
         total_practical_amount = {}
 
         for i in self.group_id.budget_ids:
+            category = i.category
             vals = {
                 'budget_id': i.id, 
                 'date_from': date_from,
@@ -107,177 +133,61 @@ class XLSXWizard(models.TransientModel):
             results[i.id] = (X, XX, groups, analytic_lines, analytic_lines_obj)
             print i.name, groups.keys()
 
-            # add keys
-            total_planned_amount[i] = dict([item, 0] for item in COLUMNS.keys())
-            total_practical_amount[i] = dict([item, 0] for item in COLUMNS.keys())
- 
+            # reset totals (planed and practical)
+            total_planned_amount[i] = {}
+            total_practical_amount[i] = {}
+            for c in COLUMNS:
+                if category in c[1]:
+                    column = c[0].decode('utf-8')
+                    total_planned_amount[i][column] = 0
+                    total_practical_amount[i][column] = 0
 
             for k1, l1 in groups.items(): # level 1                  
                 for k2, l2 in l1.items(): # level 2
                     for k3, l3 in l2.items(): # level 3
-                        print 'k1:', k1, 'k2:', k2, 'k3:', k3
+                        #print 'k1:', k1, 'k2:', k2, 'k3:', k3
                         # check mapping for level 3
                         for m in MAPPING[3]: 
                             if k3 == m:
                                 column = MAPPING[3][m]
+                                # some name of columns are dynamic
+                                if '%s' in column:
+                                    column = column % category
+                                # check type
                                 for ttype, v in l3:
-                                    print i, column, '...'
+                                    #print i, column, '...'
                                     if ttype == 1:
                                         total_planned_amount[i][column] += v.planned_amount
                                         total_practical_amount[i][column] += v.practical_amount
                                     else:
                                         total_practical_amount[i][column] += v.amount
                         # check mapping for level 2
-                        for m in MAPPING[2]: 
+                        for m in MAPPING[2]:
                             for n in MAPPING[2][m]:
-                                print '>>>', m, n
-                                if (n == '*' and k1 == m) or (k1 == m and k2 == n):
+                                if (n == '*' and k1 == m.decode('utf-8')) or (k1 == m.decode('utf-8') and k2 == n.decode('utf-8')):
                                     column = MAPPING[2][m][n]
+                                    # some name of columns are dynamic
+                                    if '%s' in column:
+                                        column = column % category
+                                    # check type
                                     for ttype, v in l3:
-                                        print i, column, '...'
                                         if ttype == 1:
                                             total_planned_amount[i][column] += v.planned_amount
                                             total_practical_amount[i][column] += v.practical_amount
                                         else:
                                             total_practical_amount[i][column] += v.amount
+            # print columns
+            for c in COLUMNS:
+                if category in c[1]:
+                    column = c[0].decode('utf-8')
+                    print c[0], total_planned_amount[i][column]
+                    print c[0], total_practical_amount[i][column]
+            #print 'P:', total_planned_amount
+            #print 'R:', total_practical_amount
+            #stop
 
-                        # check mapping for level 2
-                        #for m, n in MAPPINGS[2]:
-                        #    for o, p in .items():
-                        #        if o == '*' and :
-                        #            print n, l3
-            stop
-            
-            #UNIDADES FUNCIONALES
-            GROUPS = {
-                'Gastos Secretarias': [],
-                'Gastos Areas y Equipos': [],
-                'Gastos Generales': [
-                    'ACTOS VARIOS',
-                    'CONSEJO ESTATAL CCE',
-                    'CONSULTAS CIUDADANAS',
-                    'CONSEJO AUTONOMICO'
-                ],
-                'Gastos Extraordinarios': [
-                    'DESARROLLO PARTICIPA',
-                    'ESTUDIOS DEMOSCOPICOS',
-                    'FONDO ANUAL ACTIVIDADES',
-                    'ORDENADORES',
-                    'PROYECTOS AREAS',
-                    'PROYECTOS SOCIALES',
-                ]
-            }
-
-            for k, l1 in groups.items():
-                if k in GROUPS:
-                    for k2, l2 in l1.items():
-                        if (k2 in GROUPS[k]) or not GROUPS[k]: 
-                            print k, k2
-                            planned_amount = 0
-                            practical_amount = 0
-                            for l3 in l2.values():
-                                for l in l3: 
-                                    ttype = l[0]
-                                    line = l[1]
-                                    # print k
-                                    if ttype == 1:
-                                        planned_amount += line.planned_amount
-                                        practical_amount += line.practical_amount
-                                    else:
-                                        practical_amount += line.amount
-                            print 'planned_amount:', planned_amount
-                            print 'practical_amount:', practical_amount
-                            total_planned_amount += planned_amount
-                            total_practical_amount += practical_amount
-            print 'total planned_amount:', total_planned_amount
-            print 'total practical_amount:', total_practical_amount
-
-
-            # INGRESOS
-            for j in groups['Ingresos'].values():
-                # print j
-                for k in j['INGRESOS']:
-                    # print k
-                    if k[0] == 1:
-                        total_planned_amount += k[1].planned_amount
-                        total_practical_amount += k[1].practical_amount
-                    else:
-                        total_practical_amount += k[1].amount
-            print 'total planned_amount:', total_planned_amount
-            print 'total practical_amount:', total_practical_amount
-
-
-            #UNIDADES FUNCIONALES
-            GROUPS = {
-                'Gastos Secretarias': [],
-                'Gastos Areas y Equipos': [],
-                'Gastos Generales': [
-                    'ACTOS VARIOS',
-                    'CONSEJO ESTATAL CCE',
-                    'CONSULTAS CIUDADANAS',
-                    'CONSEJO AUTONOMICO'
-                ],
-                'Gastos Extraordinarios': [
-                    'DESARROLLO PARTICIPA',
-                    'ESTUDIOS DEMOSCOPICOS',
-                    'FONDO ANUAL ACTIVIDADES',
-                    'ORDENADORES',
-                    'PROYECTOS AREAS',
-                    'PROYECTOS SOCIALES',
-                ]
-            }
-
-            total_planned_amount = 0
-            total_practical_amount = 0
-            for k, l1 in groups.items():
-                if k in GROUPS:
-                    for k2, l2 in l1.items():
-                        if (k2 in GROUPS[k]) or not GROUPS[k]: 
-                            print k, k2
-                            planned_amount = 0
-                            practical_amount = 0
-                            for l3 in l2.values():
-                                for l in l3: 
-                                    ttype = l[0]
-                                    line = l[1]
-                                    # print k
-                                    if ttype == 1:
-                                        planned_amount += line.planned_amount
-                                        practical_amount += line.practical_amount
-                                    else:
-                                        practical_amount += line.amount
-                            print 'planned_amount:', planned_amount
-                            print 'practical_amount:', practical_amount
-                            total_planned_amount += planned_amount
-                            total_practical_amount += practical_amount
-            print 'total planned_amount:', total_planned_amount
-            print 'total practical_amount:', total_practical_amount
-
-            
-            
-
-            #SALARIOS
-            # total_planned_amount = 0
-            # total_practical_amount = 0
-            # for j in groups.values():
-            #     for k in j.values():
-            #         if 'SALARIOS' in k:
-            #             print k['SALARIOS']
-            #             for l in k['SALARIOS']:
-            #                 # print k
-            #                 if l[0] == 1:
-            #                     total_planned_amount += l[1].planned_amount
-            #                     total_practical_amount += l[1].practical_amount
-            #                 else:
-            #                     total_practical_amount += l[1].amount
-            # print 'total planned_amount:', total_planned_amount
-            # print 'total practical_amount:', total_practical_amount
-
-            
-
-
-
-        # print results
+        #print 'P:', total_planned_amount
+        #print 'R:', total_practical_amount
         stop
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980

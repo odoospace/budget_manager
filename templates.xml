@@ -64,10 +64,11 @@
             <xpath expr="//button[@name='confirm']" position="after">
                 <button name="export_xlsxwizard" type="object" string="Export to XLSX"/>
             </xpath>
-            <xpath expr="//field[@name='company_id']" position="after"> 
-               <field name="segment_id"/>
-               <field name="segment"/>
-               <field name="zero_incoming"/>
+            <xpath expr="//field[@name='company_id']" position="after">
+                <field name="category"/>
+                <field name="segment_id"/>
+                <field name="segment"/>
+                <field name="zero_incoming"/>
             </xpath> 
             <xpath expr="//page[@string='Budget Lines']" position="after">
               <page string="Budget Lines Manager">
