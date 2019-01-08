@@ -64,7 +64,7 @@ class XLSXWizard(models.TransientModel):
             ('Aportaciones GP', ['CCE', 'CCA', 'CCM']),
             ('Aportaciones Cargos P\xc3\xbablicos', ['CCE', 'CCA', 'CCM']),
             ('Colaboraciones Adscritas', ['CCE', 'CCA', 'CCM']),
-            ('Subvenciones', ['CCE']), # TODO: review CCA and CCM!!!!
+            ('Subvenciones', ['CCE', 'CCA']), # TODO: review CCA and CCM!!!!
             ('Estatal', ['CCA', 'CCM']),
             ('Otros+', ['CCE', 'CCA']),
             ('CCA', ['CCM'])
@@ -188,9 +188,9 @@ class XLSXWizard(models.TransientModel):
                                     else:
                                         print 'ttype:', ttype
                                         total_practical_amount[i][column] += v.amount
-                            stop
+                            # stop
                         # check mapping for level 2
-                        stop
+                        # stop
                         for m in MAPPING[2]:
                             for n in MAPPING[2][m]:
                                 if (n == '*' and k1 == m.decode('utf-8')) or (k1 == m.decode('utf-8') and k2 == n.decode('utf-8')):
@@ -236,7 +236,7 @@ class XLSXWizard(models.TransientModel):
         _yellow = workbook.add_format({'bg_color': '#fbe5a3', 'num_format': '#,##0.00'})
         _green = workbook.add_format({'bg_color': '#cbdeb9', 'num_format': '#,##0.00'})
         _red = workbook.add_format({'bg_color': '#f0cdb1', 'num_format': '#,##0.00'})
-
+        _gray = workbook.add_format({'bg_color': 'silver', 'num_format': '#,##0.00', 'bold': True})
         """
         _silver_money = workbook.add_format({'bg_color': '#D0D0D0', 'num_format': '#,##0.00'})
         _silver_bold_center = workbook.add_format({'bold': True, 'bg_color': '#D0D0D0', 'align': 'center'})
@@ -268,7 +268,7 @@ class XLSXWizard(models.TransientModel):
         workbook.close()
 
         xlsxfile.seek(0)
-        name = self.budget_id.name.lower().replace(' ', '_')
+        name = self.group_id.name.lower().replace(' ', '_')
         vals = {
             'name': 'presupuesto_agrupado_%s_%s_%s.xlsx' % (name, _date_from, _date_to),
             'datas': base64.encodestring(xlsxfile.read()),
@@ -288,7 +288,7 @@ class XLSXWizard(models.TransientModel):
         worksheet.set_column(0, 0, 40)
         date_from = datetime.strptime(_date_from, '%Y-%m-%d').strftime('%d/%m/%y')
         date_to = datetime.strptime(_date_to, '%Y-%m-%d').strftime('%d/%m/%y')
-        name = '%s (%s - %s)' % (budget_id.name, date_from, date_to)
+        name = '%s (%s - %s)' % (group_id.name, date_from, date_to)
         worksheet.write(y, 0, name, _yellow)
         for column in XX:
             worksheet.set_column(x, x+1, 12)
@@ -391,7 +391,7 @@ class XLSXWizard(models.TransientModel):
         # TODO: refactorize this!
         row = 'Ingresos'
         
-        if not groups.has_key(row) and (self.incoming_bypass or self.budget_id.zero_incoming):
+        if not groups.has_key(row) and (self.incoming_bypass or self.group_id.zero_incoming):
             groups[row] = {}
         
         worksheet.merge_range(y, x_total-3, y, x_total-1, row.upper(), _yellow )
@@ -456,13 +456,13 @@ class XLSXWizard(models.TransientModel):
 
         # Rewind the buffer.
         xlsxfile.seek(0)
-        name = self.budget_id.name.lower().replace(' ', '_')
+        name = self.group_id.name.lower().replace(' ', '_')
         vals = {
             'name': 'presupuesto_%s_%s_%s.xlsx' % (name, _date_from, _date_to),
             'datas': base64.encodestring(xlsxfile.read()),
             'datas_fname': 'presupuesto_%s_%s_%s.xlsx' % (name, _date_from, _date_to),
-            'res_model': self.budget_id._name,
-            'res_id': self.budget_id.id,
+            'res_model': self.group_id._name,
+            'res_id': self.group_id.id,
             'type': 'binary'
         }
         attachment_id = self.env['ir.attachment'].create(vals)
