@@ -14,6 +14,7 @@ import collections
 # TODO: more general use...
 # TODO: translations
 
+
 G = {
     False: 'No asignado',
     'A': 'Gastos Secretarias',
@@ -48,34 +49,58 @@ class XLSXWizard(models.TransientModel):
         _date_from = self.date_from
         date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
+        """
         data = {
+            'Gastos': (0, 0),
             'Ingresos': (0, 0),
             'Salarios': (0, 0),
         }
+        """
+
+        # Create an new Excel file and add a worksheet
+        # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
+        xlsxfile = StringIO.StringIO()
+        workbook = xlsxwriter.Workbook(xlsxfile, {'in_memory': True})
+        worksheet = workbook.add_worksheet()
+        #xworksheet.freeze_panes(1, 1) # freeze first column and first row
+
+        # styles
+        _money = workbook.add_format({'num_format': '#,##0.00'})
+        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': '#92ff96'})
+        _bold = workbook.add_format({'bold': True})
+        _bold_center = workbook.add_format({'bold': True, 'align': 'center'})
+
+        _yellow = workbook.add_format({'bg_color': '#fbe5a3', 'num_format': '#,##0.00'})
+        _superyellow = workbook.add_format({'bold': True, 'bg_color': 'yellow', 'num_format': '#,##0.00'})
+        _orange = workbook.add_format({'bg_color': '#fbe6a2', 'num_format': '#,##0.00'})
+        _green = workbook.add_format({'bg_color': '#cbddb9', 'num_format': '#,##0.00'})
+        _red = workbook.add_format({'bg_color': '#f1cdb0', 'num_format': '#,##0.00'})
+        _silver = workbook.add_format({'bold': True, 'bg_color': '#D0D0D0', 'align': 'center'})
+
 
         # predefine columns
         # each name of column have to be unique (Otros-, Otros+)
         COLUMNS = [
-            ('Gastos', ['CCE', 'CCA', 'CCM']),
-            ('Ingresos', ['CCE', 'CCA', 'CCM']),
-            ('Salarios', ['CCE', 'CCA', 'CCM']),
+            ('Gastos', ['CCE', 'CCA', 'CCM'], _orange),
+            ('Ingresos', ['CCE', 'CCA', 'CCM'], _green),
+            ('Salarios', ['CCE', 'CCA', 'CCM'], _red),
             # Gastos
-            ('Unidades Funcionales y CCE', ['CCE']),
-            ('Unidades Funcionales y CCA', ['CCA']),
-            ('Unidades Funcionales y CCM', ['CCM']),
-            ('Alquiler y Gastos de Oficina', ['CCE', 'CCA', 'CCM']),
-            ('Asignaciones Autonómicas y Municipales', ['CCE']),
-            ('Asignaciones Municipales y Círculos', ['CCA']),
-            ('Asignaciones Círculos', ['CCM']),
-            ('Otros-', ['CCE', 'CCA', 'CCM']),
+            ('Unidades Funcionales y CCE', ['CCE'], _orange),
+            ('Unidades Funcionales y CCA', ['CCA'], _orange),
+            ('Unidades Funcionales y CCM', ['CCM'], _orange),
+            ('Alquiler y Gastos de Oficina', ['CCE', 'CCA', 'CCM'], _orange),
+            ('Asignaciones Autonómicas y Municipales', ['CCE'], _orange),
+            ('Asignaciones Municipales y Círculos', ['CCA'], _orange),
+            ('Asignaciones Círculos', ['CCM', 'CCA'], _orange),
+            ('Otros-', ['CCE', 'CCA', 'CCM'], _orange),
             # Ingresos
-            ('Aportaciones GP', ['CCE', 'CCA', 'CCM']),
-            ('Aportaciones Cargos P\xc3\xbablicos', ['CCE', 'CCA', 'CCM']),
-            ('Colaboraciones Adscritas', ['CCE', 'CCA', 'CCM']),
-            ('Subvenciones', ['CCE']), # TODO: review CCA and CCM!!!!
-            ('Estatal', ['CCA', 'CCM']),
-            ('Otros+', ['CCE', 'CCA']),
-            ('CCA', ['CCM'])
+            ('Aportaciones GP', ['CCE', 'CCA', 'CCM'], _green),
+            ('Aportaciones Cargos P\xc3\xbablicos', ['CCE', 'CCA', 'CCM'], _orange),
+            ('Colaboraciones Adscritas', ['CCE', 'CCA', 'CCM'], _orange),
+            ('Subvenciones', ['CCE'], _orange), # TODO: review CCA and CCM!!!!
+            ('Estatal', ['CCA', 'CCM'], _orange),
+            ('Otros+', ['CCE', 'CCA'], _orange),
+            ('CCA', ['CCM', _orange])
         ]
 
         # [level, topic] - %s -> CCA, CCE, CCM
@@ -89,7 +114,7 @@ class XLSXWizard(models.TransientModel):
                     'APORTACIONES GP': 'Aportaciones GP',
                     'APORTACIONES CARGOS PUB.': u'Aportaciones Cargos Públicos',
                     'CONSEJO AUTONOMICO': 'Otros+', # CCA ?
-                    'ESTATAL': 'Otros+', # Estatal 
+                    'ESTATAL': 'Estatal', # Estatal 
                     'CROWFUNDING': 'Otros+',
                     'COLABORACIONES ADSCRITAS': 'Colaboraciones Adscritas',
                     'SUBVENCIONES': 'Subvenciones'
@@ -109,8 +134,9 @@ class XLSXWizard(models.TransientModel):
                     'CONSULTAS CIUDADANAS': 'Unidades Funcionales y %s',
                     'ALQUILER Y GASTOS OFICINAS': 'Alquiler y Gastos de Oficina',
                     'COMISIONES BANCARIAS': 'Otros-',
-                    'ASIGNACIONES AUTONÓMICAS': u'Asignaciones Autonómicas y Municipales',
+                    'ASIGNACIONES AUTONOMICAS': u'Asignaciones Autonómicas y Municipales',
                     'ASIGNACIONES MUNICIPALES': u'Asignaciones Municipales y Círculos',
+                    'ASIGNACIONES CIRCULOS': u'Asignaciones Municipales y Círculos',
                     'PROVISION CONTINGENCIAS': 'Otros-'
                 },
                 'Gastos Extraordinarios': {
@@ -159,7 +185,7 @@ class XLSXWizard(models.TransientModel):
             #res[i.id] = (X, XX, groups, analytic_lines, analytic_lines_obj) # TODO: review to use this
             print '===', i.name, groups.keys()
 
-            # reset totals (planed and practical)
+            # reset totals (planned and practical)
             total_planned_amount[i] = {}
             total_practical_amount[i] = {}
             for c in COLUMNS:
@@ -191,14 +217,14 @@ class XLSXWizard(models.TransientModel):
                                     #print i, column, '...'
                                     if ttype == 1:
                                         print 'ttype:', 1
+                                        print '+++ 1', m, column, v.planned_amount, v.practical_amount
                                         total_planned_amount[i][column] += v.planned_amount
                                         total_practical_amount[i][column] += v.practical_amount
                                     else:
                                         print 'ttype:', ttype
+                                        print '+++ 2', m, column, 0, v.amount
                                         total_practical_amount[i][column] += v.amount
-                            #stop
                         # check mapping for level 2
-                        #stop
                         for m in MAPPING[2]:
                             for n in MAPPING[2][m]:
                                 if (n == '*' and k1 == m.decode('utf-8')) or (k1 == m.decode('utf-8') and k2 == n.decode('utf-8')):
@@ -208,18 +234,30 @@ class XLSXWizard(models.TransientModel):
                                         column = column % category
                                     # check type
                                     for ttype, v in l3:
+                                        # TODO: refactor this (gastos)
                                         if ttype == 1:
+                                            # sum again
+                                            if 'Gastos' in m:
+                                                total_planned_amount[i]['Gastos'] -= v.planned_amount
+                                                total_practical_amount[i]['Gastos'] -= v.practical_amount
+                                            print '+++ 3', m, n, column, v.planned_amount, v.practical_amount
                                             try:
                                                 total_planned_amount[i][column] += v.planned_amount
                                                 total_practical_amount[i][column] += v.practical_amount
                                             except Exception as e:
-                                                print '***', e
+                                                print '>>>', e
                                                 if column == 'Subvenciones':
                                                     _column = 'Otros+'
                                                     total_planned_amount[i][_column] += v.planned_amount
                                                     total_practical_amount[i][_column] += v.practical_amount
                                         else:
+                                            print '+++ 4', m, n, column, 0, v.amount
                                             total_practical_amount[i][column] += v.amount
+                                            # sum again
+                                            if 'Gastos' in m:
+                                                total_practical_amount[i]['Gastos'] -= v.amount
+        
+
             # print columns
             res[category][i.name] = {}
             for c in COLUMNS:
@@ -229,27 +267,7 @@ class XLSXWizard(models.TransientModel):
                         'planned': total_planned_amount[i][column],
                         'practical': total_practical_amount[i][column]
                     } 
-                    
-        #print '>>>', res
         
-        # Create an new Excel file and add a worksheet
-        # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
-        xlsxfile = StringIO.StringIO()
-        workbook = xlsxwriter.Workbook(xlsxfile, {'in_memory': True})
-        worksheet = workbook.add_worksheet()
-        #xworksheet.freeze_panes(1, 1) # freeze first column and first row
-
-        # styles
-        _money = workbook.add_format({'num_format': '#,##0.00'})
-        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': '#92ff96'})
-        _bold = workbook.add_format({'bold': True})
-        _bold_center = workbook.add_format({'bold': True, 'align': 'center'})
-
-        _yellow = workbook.add_format({'bg_color': '#fbe5a3', 'num_format': '#,##0.00'})
-        _green = workbook.add_format({'bg_color': '#cbdeb9', 'num_format': '#,##0.00'})
-        _red = workbook.add_format({'bg_color': '#f0cdb1', 'num_format': '#,##0.00'})
-        _gray = workbook.add_format({'bold': True, 'bg_color': 'silver'})
-
         """
         _silver_money = workbook.add_format({'bg_color': '#D0D0D0', 'num_format': '#,##0.00'})
         _silver_bold_center = workbook.add_format({'bold': True, 'bg_color': '#D0D0D0', 'align': 'center'})
@@ -266,29 +284,50 @@ class XLSXWizard(models.TransientModel):
         _blue_porcentage = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00"%"'})
         """
 
+        # TODO: add main 
+
         y = 0
+        worksheet.set_column(0, 0, 30)
+        worksheet.set_column(1, 1, 20)
         for category in ['CCE', 'CCA', 'CCM']:
             # headers
             if res[category]:
-                x = 1
-                worksheet.set_column(y, 0, 20)
-                worksheet.write(y, 0, category, _gray)
+                x = 0
+                worksheet.merge_range(y, x, y+1, x, category, _silver)
+                x += 1
                 for c in COLUMNS:
                     if category in c[1]:
                         column = c[0].decode('utf-8')
                         worksheet.set_column(x, x+1, 12)
-                        worksheet.merge_range(y, x, y, x+1, column, _gray)
+                        worksheet.merge_range(y, x, y, x+1, column, _silver)
+                        worksheet.write(y+1, x, 'PRESUP.', _silver)
+                        worksheet.write(y+1, x+1, 'REALES', _silver)
                         x += 2
+                y += 1
+                y_start_total = 1
                 for line in res[category]:
                     y += 1
                     x = 0
-                    worksheet.write(y, x, line, _gray)
+                    worksheet.write(y, x, line)
                     x += 1
                     for c in COLUMNS:
                         if category in c[1]:
-                            worksheet.write(y, x, res[category][line][c[0]]['planned'])
-                            worksheet.write(y, x+1, res[category][line][c[0]]['practical'])
+                            if c[2]:
+                                worksheet.write(y, x, res[category][line][c[0]]['planned'], _money)
+                                worksheet.write(y, x+1, res[category][line][c[0]]['practical'], c[2])
+                            else:
+                                worksheet.write(y, x, res[category][line][c[0]]['planned'],_money)
+                                worksheet.write(y, x+1, res[category][line][c[0]]['practical'])
                             x += 2
+                y += 1
+                x = 1
+                worksheet.write(y, 0, 'TOTAL', _superyellow)
+                for c in COLUMNS:
+                    cell_range = xl_range(y_start_total, x, y-1, x)
+                    worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
+                    cell_range = xl_range(y_start_total, x+1, y-1, x+1)
+                    worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
+                    x += 2
                 y += 2
         
         workbook.close()
