@@ -91,16 +91,17 @@ class XLSXWizard(models.TransientModel):
             ('Alquiler y Gastos de Oficina', ['CCE', 'CCA', 'CCM'], _orange),
             ('Asignaciones Autonómicas y Municipales', ['CCE'], _orange),
             ('Asignaciones Municipales y Círculos', ['CCA'], _orange),
+            # TODO: remove this one
             ('Asignaciones Círculos', ['CCM', 'CCA'], _orange),
             ('Otros-', ['CCE', 'CCA', 'CCM'], _orange),
             # Ingresos
             ('Aportaciones GP', ['CCE', 'CCA', 'CCM'], _green),
-            ('Aportaciones Cargos P\xc3\xbablicos', ['CCE', 'CCA', 'CCM'], _orange),
-            ('Colaboraciones Adscritas', ['CCE', 'CCA', 'CCM'], _orange),
-            ('Subvenciones', ['CCE'], _orange), # TODO: review CCA and CCM!!!!
-            ('Estatal', ['CCA', 'CCM'], _orange),
-            ('Otros+', ['CCE', 'CCA'], _orange),
-            ('CCA', ['CCM', _orange])
+            ('Aportaciones Cargos P\xc3\xbablicos', ['CCE', 'CCA', 'CCM'], _green),
+            ('Colaboraciones Adscritas', ['CCE', 'CCA', 'CCM'], _green),
+            ('Subvenciones', ['CCE'], _green), # TODO: review CCA and CCM!!!!
+            ('Estatal', ['CCA', 'CCM'], _green),
+            ('Otros+', ['CCE', 'CCA'], _green),
+            ('CCA', ['CCM', _green])
         ]
 
         # [level, topic] - %s -> CCA, CCE, CCM
@@ -297,11 +298,21 @@ class XLSXWizard(models.TransientModel):
                 x += 1
                 for c in COLUMNS:
                     if category in c[1]:
-                        column = c[0].decode('utf-8')
-                        worksheet.set_column(x, x+1, 12)
-                        worksheet.merge_range(y, x, y, x+1, column, _silver)
+                        column = c[0].decode('utf-8').upper()
+                        if column == 'SALARIOS':
+                            worksheet.set_column(x, x+3, 12) # 4 colums
+                            worksheet.merge_range(y, x, y, x+3, column, _silver)
+                        else:
+                            worksheet.set_column(x, x+1, 12) # 2 columns
+                            worksheet.merge_range(y, x, y, x+1, column, _silver)
                         worksheet.write(y+1, x, 'PRESUP.', _silver)
+                        if column == 'SALARIOS':
+                            worksheet.write(y+1, x+1, '%', _silver)
+                            x += 1
                         worksheet.write(y+1, x+1, 'REALES', _silver)
+                        if column == 'SALARIOS':
+                            worksheet.write(y+1, x+2, '%', _silver)
+                            x += 1
                         x += 2
                 y += 1
                 y_start_total = 1
@@ -312,10 +323,22 @@ class XLSXWizard(models.TransientModel):
                     x += 1
                     for c in COLUMNS:
                         if category in c[1]:
+                            column = c[0].decode('utf-8').upper()
                             if c[2]:
                                 worksheet.write(y, x, res[category][line][c[0]]['planned'], _money)
+                                if column == 'SALARIOS':
+                                    cell_gastos_planned = xl_rowcol_to_cell(y, 1)
+                                    cell_planned = xl_rowcol_to_cell(y, x)
+                                    worksheet.write_formula(y, x+1, '=-(%s/%s)*100' % (cell_planned, cell_gastos_planned), _money)
+                                    x += 1
                                 worksheet.write(y, x+1, res[category][line][c[0]]['practical'], c[2])
+                                if column == 'SALARIOS':
+                                    cell_gastos_practical = xl_rowcol_to_cell(y, 2)
+                                    cell_practical = xl_rowcol_to_cell(y, x+1)
+                                    worksheet.write_formula(y, x+2, '=-(%s/%s)*100' % (cell_practical, cell_gastos_practical), c[2])
+                                    x += 1
                             else:
+                                # SALARIOS have an color
                                 worksheet.write(y, x, res[category][line][c[0]]['planned'],_money)
                                 worksheet.write(y, x+1, res[category][line][c[0]]['practical'])
                             x += 2
@@ -323,11 +346,19 @@ class XLSXWizard(models.TransientModel):
                 x = 1
                 worksheet.write(y, 0, 'TOTAL', _superyellow)
                 for c in COLUMNS:
-                    cell_range = xl_range(y_start_total, x, y-1, x)
-                    worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
-                    cell_range = xl_range(y_start_total, x+1, y-1, x+1)
-                    worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
-                    x += 2
+                    if category in c[1]:
+                        column = c[0].decode('utf-8').upper()
+                        cell_range = xl_range(y_start_total, x, y-1, x)
+                        worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
+                        if column == 'SALARIOS':
+                            worksheet.write(y, x+1, '-', _superyellow)
+                            x += 1
+                        cell_range = xl_range(y_start_total, x+1, y-1, x+1)
+                        worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
+                        if column == 'SALARIOS':
+                            worksheet.write(y, x+2, '-', _superyellow)
+                            x += 1
+                        x += 2
                 y += 2
         
         workbook.close()
