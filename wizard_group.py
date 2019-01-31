@@ -338,12 +338,12 @@ class XLSXWizard(models.TransientModel):
                             x += 1
                         x += 2
                 y += 1
+                y_start_total = y
                 for line in res[category]:
                     y += 1
                     x = 0
                     worksheet.write(y, x, line)
                     x += 1
-                    y_start_total = y
                     for c in COLUMNS:
                         if category in c[1]:
                             column = c[0].decode('utf-8').upper()
@@ -371,12 +371,12 @@ class XLSXWizard(models.TransientModel):
                 for c in COLUMNS:
                     if category in c[1]:
                         column = c[0].decode('utf-8').upper()
-                        cell_range = xl_range(y_start_total, x, y-1, x)
+                        cell_range = xl_range(y_start_total+1, x, y-1, x)
                         worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
                         if column == 'SALARIOS':
                             worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
                             x += 1
-                        cell_range = xl_range(y_start_total, x+1, y-1, x+1)
+                        cell_range = xl_range(y_start_total+1, x+1, y-1, x+1)
                         worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
                         if column == 'SALARIOS':
                             worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
