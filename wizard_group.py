@@ -92,7 +92,7 @@ class XLSXWizard(models.TransientModel):
             ('Asignaciones Autonómicas y Municipales', ['CCE'], _orange),
             ('Asignaciones Municipales y Círculos', ['CCA'], _orange),
             # TODO: remove this one
-            ('Asignaciones Círculos', ['CCM', 'CCA'], _orange),
+            ('Asignaciones Círculos', ['CCM'], _orange),
             ('Otros-', ['CCE', 'CCA', 'CCM'], _orange),
             # Ingresos
             ('Aportaciones GP', ['CCE', 'CCA', 'CCM'], _green),
@@ -101,8 +101,18 @@ class XLSXWizard(models.TransientModel):
             ('Subvenciones', ['CCE'], _green), # TODO: review CCA and CCM!!!!
             ('Estatal', ['CCA', 'CCM'], _green),
             ('Otros+', ['CCE', 'CCA'], _green),
-            ('CCA', ['CCM', _green])
+            ('CCA', ['CCM'], _green)
         ]
+
+        COLUMNS_SHORT = {
+            'Unidades Funcionales y CCA': 'UNID. FUNC. Y CCA',
+            'Unidades Funcionales y CCM': 'UNID. FUNC. Y CCM',
+            'Unidades Funcionales y CCE': 'UNID. FUNC. Y CCE',
+            'Alquiler y Gastos de Oficina': 'ALQ. Y GASTOS DE OFIC.',
+            'Asignaciones Municipales y Círculos': 'ASIGN. MUNIC. Y CIRC.',
+            'Aportaciones Cargos P\xc3\xbablicos': 'APORTAC. CARGOS PÚB.',
+            'Colaboraciones Adscritas': 'COLAB. ADSCRITAS'
+        }
 
         # [level, topic] - %s -> CCA, CCE, CCM
         MAPPING = {
@@ -114,7 +124,7 @@ class XLSXWizard(models.TransientModel):
                 'Ingresos': {
                     'APORTACIONES GP': 'Aportaciones GP',
                     'APORTACIONES CARGOS PUB.': u'Aportaciones Cargos Públicos',
-                    'CONSEJO AUTONOMICO': 'Otros+', # CCA ?
+                    'CONSEJO AUTONOMICO': 'CCA', # CCA ?
                     'ESTATAL': 'Estatal', # Estatal 
                     'CROWFUNDING': 'Otros+',
                     'COLABORACIONES ADSCRITAS': 'Colaboraciones Adscritas',
@@ -239,8 +249,8 @@ class XLSXWizard(models.TransientModel):
                                         if ttype == 1:
                                             # sum again
                                             if 'Gastos' in m:
-                                                total_planned_amount[i]['Gastos'] -= v.planned_amount
-                                                total_practical_amount[i]['Gastos'] -= v.practical_amount
+                                                total_planned_amount[i]['Gastos'] += v.planned_amount
+                                                total_practical_amount[i]['Gastos'] += v.practical_amount
                                             print '+++ 3', m, n, column, v.planned_amount, v.practical_amount
                                             try:
                                                 total_planned_amount[i][column] += v.planned_amount
@@ -253,10 +263,16 @@ class XLSXWizard(models.TransientModel):
                                                     total_practical_amount[i][_column] += v.practical_amount
                                         else:
                                             print '+++ 4', m, n, column, 0, v.amount
-                                            total_practical_amount[i][column] += v.amount
+                                            try:
+                                                total_practical_amount[i][column] += v.amount
+                                            except Exception as e:
+                                                print '***', e
+                                                if column == 'Asignaciones Municipales y Círculos':
+                                                    _column = 'Asignaciones Autonómicas y Municipales'
+                                                    total_practical_amount[i][column] += v.amount
                                             # sum again
                                             if 'Gastos' in m:
-                                                total_practical_amount[i]['Gastos'] -= v.amount
+                                                total_practical_amount[i]['Gastos'] += v.amount
         
 
             # print columns
@@ -298,29 +314,36 @@ class XLSXWizard(models.TransientModel):
                 x += 1
                 for c in COLUMNS:
                     if category in c[1]:
-                        column = c[0].decode('utf-8').upper()
-                        if column == 'SALARIOS':
+                        column = c[0].decode('utf-8')
+                        if column == 'Salarios':
                             worksheet.set_column(x, x+3, 12) # 4 colums
-                            worksheet.merge_range(y, x, y, x+3, column, _silver)
+                            worksheet.merge_range(y, x, y, x+3, column.upper(), _silver)
                         else:
                             worksheet.set_column(x, x+1, 12) # 2 columns
-                            worksheet.merge_range(y, x, y, x+1, column, _silver)
+                            # change some column names to short ones
+                            if column.startswith('Aportaciones Cargos P'):
+                                # hack
+                                worksheet.merge_range(y, x, y, x+1, 'APORTAC. CARGOS PUB.', _silver)
+                            elif column in COLUMNS_SHORT:
+                                worksheet.merge_range(y, x, y, x+1, COLUMNS_SHORT[column], _silver)
+                            else:
+                                worksheet.merge_range(y, x, y, x+1, column.upper(), _silver)
                         worksheet.write(y+1, x, 'PRESUP.', _silver)
-                        if column == 'SALARIOS':
+                        if column == 'Salarios':
                             worksheet.write(y+1, x+1, '%', _silver)
                             x += 1
                         worksheet.write(y+1, x+1, 'REALES', _silver)
-                        if column == 'SALARIOS':
+                        if column == 'Salarios':
                             worksheet.write(y+1, x+2, '%', _silver)
                             x += 1
                         x += 2
                 y += 1
-                y_start_total = 1
                 for line in res[category]:
                     y += 1
                     x = 0
                     worksheet.write(y, x, line)
                     x += 1
+                    y_start_total = y
                     for c in COLUMNS:
                         if category in c[1]:
                             column = c[0].decode('utf-8').upper()
@@ -329,13 +352,13 @@ class XLSXWizard(models.TransientModel):
                                 if column == 'SALARIOS':
                                     cell_gastos_planned = xl_rowcol_to_cell(y, 1)
                                     cell_planned = xl_rowcol_to_cell(y, x)
-                                    worksheet.write_formula(y, x+1, '=-(%s/%s)*100' % (cell_planned, cell_gastos_planned), _money)
+                                    worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_planned, cell_gastos_planned), _money)
                                     x += 1
                                 worksheet.write(y, x+1, res[category][line][c[0]]['practical'], c[2])
                                 if column == 'SALARIOS':
                                     cell_gastos_practical = xl_rowcol_to_cell(y, 2)
                                     cell_practical = xl_rowcol_to_cell(y, x+1)
-                                    worksheet.write_formula(y, x+2, '=-(%s/%s)*100' % (cell_practical, cell_gastos_practical), c[2])
+                                    worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), c[2])
                                     x += 1
                             else:
                                 # SALARIOS have an color
@@ -351,12 +374,12 @@ class XLSXWizard(models.TransientModel):
                         cell_range = xl_range(y_start_total, x, y-1, x)
                         worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
                         if column == 'SALARIOS':
-                            worksheet.write(y, x+1, '-', _superyellow)
+                            worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
                             x += 1
                         cell_range = xl_range(y_start_total, x+1, y-1, x+1)
                         worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
                         if column == 'SALARIOS':
-                            worksheet.write(y, x+2, '-', _superyellow)
+                            worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
                             x += 1
                         x += 2
                 y += 2
