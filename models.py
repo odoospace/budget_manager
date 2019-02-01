@@ -57,6 +57,7 @@ class crossovered_budget(models.Model):
     segment = fields.Char(related='segment_id.segment', readonly=True)
     segment_user_id = fields.Many2one('res.users', compute='_segment_user_id', search=_search_segment_user)
     zero_incoming = fields.Boolean(default=False)
+    with_children = fields.Boolean(default=False)
     category = fields.Selection([
         ('CCE', 'Estatal (CCE)'),
         ('CCA', 'Autonómico (CCA)'),

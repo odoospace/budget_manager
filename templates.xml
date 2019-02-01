@@ -68,6 +68,7 @@
                 <field name="category"/>
                 <field name="segment_id"/>
                 <field name="segment"/>
+                <field name="with_children"/>
                 <field name="zero_incoming"/>
             </xpath> 
             <xpath expr="//page[@string='Budget Lines']" position="after">

@@ -64,12 +64,20 @@ class XLSXWizard(models.TransientModel):
                 groups[group][account_name][first_parent].append((1,line))
 
         # get data from analytic to prepare virtual groups
-        _anaylitic_lines = self.env['account.analytic.line'].sudo().search([
+        _search = [
             ('date', '>=', self.date_from),
             ('date', '<=', self.date_to),
-            ('company_id', '=', self.budget_id.company_id.id),
-            ('segment_id', '=', self.budget_id.segment_id.id)
-        ])
+            ('company_id', '=', self.budget_id.company_id.id)
+        ]
+        # first segment
+        segment_ids = [self.budget_id.segment_id.id]
+        
+        if self.budget_id.with_children:
+            segment_ids += self.budget_id.segment_id.segment_tmpl_id.get_childs_ids()
+        
+        _search.append(('segment_id', 'in', segment_ids))
+
+        _anaylitic_lines = self.env['account.analytic.line'].sudo().search(_search)
         analytic_lines = []
         analytic_lines_obj = []
         for line in _anaylitic_lines:
@@ -182,11 +190,6 @@ class XLSXWizard(models.TransientModel):
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
 
         X, XX, groups, analytic_lines, analytic_lines_obj = self.process_data(date_from, date_to)
-
-        print 'X:', X
-        print 'XX:', XX
-        print 'groups:', groups
-        
 
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
