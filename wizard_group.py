@@ -63,17 +63,15 @@ class XLSXWizard(models.TransientModel):
         worksheet = workbook.add_worksheet()
         #xworksheet.freeze_panes(1, 1) # freeze first column and first row
 
-        # styles
-        _money = workbook.add_format({'num_format': '#,##0.00'})
-        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': '#92ff96'})
-        _bold = workbook.add_format({'bold': True})
-        _bold_center = workbook.add_format({'bold': True, 'align': 'center'})
+        # styles (centered by default)
+        _money = workbook.add_format({'num_format': '#,##0.00', 'align': 'center'})
+        _porcentage = workbook.add_format({'num_format': '#,##0.00"%"', 'bg_color': '#92ff96', 'align': 'center'})
 
-        _yellow = workbook.add_format({'bg_color': '#fbe5a3', 'num_format': '#,##0.00'})
-        _superyellow = workbook.add_format({'bold': True, 'bg_color': 'yellow', 'num_format': '#,##0.00'})
-        _orange = workbook.add_format({'bg_color': '#fbe6a2', 'num_format': '#,##0.00'})
-        _green = workbook.add_format({'bg_color': '#cbddb9', 'num_format': '#,##0.00'})
-        _red = workbook.add_format({'bg_color': '#f1cdb0', 'num_format': '#,##0.00'})
+        _yellow = workbook.add_format({'bg_color': 'yellow'})
+        _superyellow = workbook.add_format({'bold': True, 'bg_color': 'yellow', 'num_format': '#,##0.00', 'align': 'center'})
+        _orange = workbook.add_format({'bg_color': '#fbe6a2', 'num_format': '#,##0.00', 'align': 'center'})
+        _green = workbook.add_format({'bg_color': '#cbddb9', 'num_format': '#,##0.00', 'align': 'center'})
+        _red = workbook.add_format({'bg_color': '#f1cdb0', 'num_format': '#,##0.00', 'align': 'center'})
         _silver = workbook.add_format({'bold': True, 'bg_color': '#D0D0D0', 'align': 'center'})
 
 
@@ -284,23 +282,8 @@ class XLSXWizard(models.TransientModel):
                         'practical': total_practical_amount[i][column]
                     } 
         
-        """
-        _silver_money = workbook.add_format({'bg_color': '#D0D0D0', 'num_format': '#,##0.00'})
-        _silver_bold_center = workbook.add_format({'bold': True, 'bg_color': '#D0D0D0', 'align': 'center'})
-        _gray = workbook.add_format({'bold': True, 'bg_color': 'silver'})
-        _gray_money = workbook.add_format({'bold': True, 'bg_color': 'silver', 'num_format': '#,##0.00'})
-        _gray_porcentage = workbook.add_format({'bold': True, 'bg_color': 'silver', 'num_format': '#,##0.00"%"'})
-        _purple = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'purple', 'font_color': 'white'})
-        _red = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white'})
-        _red_total = workbook.add_format({'bold': True, 'bg_color': 'red', 'font_color': 'white'})
-        _red_money = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white', 'num_format': '#,##0.00'})
-        _red_porcentage = workbook.add_format({'bold': True, 'align': 'center', 'bg_color': 'red', 'font_color': 'white', 'num_format': '#,##0.00"%"'})
-        _blue = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white'})
-        _blue_money = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00'})
-        _blue_porcentage = workbook.add_format({'bold': True, 'bg_color': 'blue', 'font_color': 'white', 'num_format': '#,##0.00"%"'})
-        """
-
-        # TODO: add main 
+        # TODO: add monthly data
+        # Excel stuff
 
         y = 0
         worksheet.set_column(0, 0, 30)
@@ -361,12 +344,12 @@ class XLSXWizard(models.TransientModel):
                                     x += 1
                             else:
                                 # SALARIOS have an color
-                                worksheet.write(y, x, res[category][line][c[0]]['planned'],_money)
+                                worksheet.write(y, x, res[category][line][c[0]]['planned'], _money)
                                 worksheet.write(y, x+1, res[category][line][c[0]]['practical'])
                             x += 2
                 y += 1
                 x = 1
-                worksheet.write(y, 0, 'TOTAL', _superyellow)
+                worksheet.write(y, 0, 'TOTAL', _yellow)
                 for c in COLUMNS:
                     if category in c[1]:
                         column = c[0].decode('utf-8').upper()
