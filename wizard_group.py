@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from openerp import models, fields, api
-from pprint import pprint
 from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
 from datetime import datetime
 from copy import copy
@@ -109,8 +108,9 @@ class XLSXWizard(models.TransientModel):
             'Unidades Funcionales y CCM': 'UNID. FUNC. Y CCM',
             'Unidades Funcionales y CCE': 'UNID. FUNC. Y CCE',
             'Alquiler y Gastos de Oficina': 'ALQ. Y GASTOS DE OFIC.',
-            'Asignaciones Municipales y Círculos': 'ASIGN. MUNIC. Y CIRC.',
-            'Aportaciones Cargos P\xc3\xbablicos': 'APORTAC. CARGOS PÚB.',
+            u'Asignaciones Autonómicas y Municipales': 'ASIGN. AUTO. Y MUN.',
+            u'Asignaciones Municipales y Círculos': 'ASIGN. MUNIC. Y CIRC.',
+            u'Aportaciones Cargos Públicos': 'APORTAC. CARGOS PUB.',
             'Colaboraciones Adscritas': 'COLAB. ADSCRITAS'
         }
 
@@ -181,7 +181,7 @@ class XLSXWizard(models.TransientModel):
             elif 'CCM' in i.name:
                 category = 'CCM'
 
-            print 'category...', category
+            #print 'category...', category
 
             budgets[category].append(i)
             vals = {
@@ -191,10 +191,9 @@ class XLSXWizard(models.TransientModel):
             }
             budget_wiz = self.env['budget_manager.xlsxwizard'].create(vals)
             # get data from detail budget report
-            print '___'
             X, XX, groups, analytic_lines, analytic_lines_obj = budget_wiz.process_data(date_from, date_to)
             #res[i.id] = (X, XX, groups, analytic_lines, analytic_lines_obj) # TODO: review to use this
-            print '===', i.name, groups.keys()
+            #print '===', i.name, groups.keys()
 
             # reset totals (planned and practical)
             total_planned_amount[i] = {}
@@ -205,7 +204,7 @@ class XLSXWizard(models.TransientModel):
                     total_planned_amount[i][column] = 0
                     total_practical_amount[i][column] = 0
 
-            print 'starting...'
+            #print 'starting...'
 
             for k1, l1 in groups.items(): # level 1
                 #print 'k1', k1    
@@ -213,7 +212,7 @@ class XLSXWizard(models.TransientModel):
                     #print 'k2', k2
                     for k3, l3 in l2.items(): # level 3
                         #print 'k3', k3
-                        print 'k1:', k1, 'k2:', k2, 'k3:', k3
+                        #print 'k1:', k1, 'k2:', k2, 'k3:', k3
                         # check mapping for level 3
                         for m in MAPPING[3]:
                             print m, MAPPING[3]
@@ -227,13 +226,13 @@ class XLSXWizard(models.TransientModel):
                                 for ttype, v in l3:
                                     #print i, column, '...'
                                     if ttype == 1:
-                                        print 'ttype:', 1
-                                        print '+++ 1', m, column, v.planned_amount, v.practical_amount
+                                        #print 'ttype:', 1
+                                        #print '+++ 1', m, column, v.planned_amount, v.practical_amount
                                         total_planned_amount[i][column] += v.planned_amount
                                         total_practical_amount[i][column] += v.practical_amount
                                     else:
-                                        print 'ttype:', ttype
-                                        print '+++ 2', m, column, 0, v.amount
+                                        #print 'ttype:', ttype
+                                        #print '+++ 2', m, column, 0, v.amount
                                         total_practical_amount[i][column] += v.amount
                         # check mapping for level 2
                         for m in MAPPING[2]:
@@ -251,22 +250,22 @@ class XLSXWizard(models.TransientModel):
                                             if 'Gastos' in m:
                                                 total_planned_amount[i]['Gastos'] += v.planned_amount
                                                 total_practical_amount[i]['Gastos'] += v.practical_amount
-                                            print '+++ 3', m, n, column, v.planned_amount, v.practical_amount
+                                            #print '+++ 3', m, n, column, v.planned_amount, v.practical_amount
                                             try:
                                                 total_planned_amount[i][column] += v.planned_amount
                                                 total_practical_amount[i][column] += v.practical_amount
                                             except Exception as e:
-                                                print '>>>', e
+                                                #print '>>>', e
                                                 if column == 'Subvenciones':
                                                     _column = 'Otros+'
                                                     total_planned_amount[i][_column] += v.planned_amount
                                                     total_practical_amount[i][_column] += v.practical_amount
                                         else:
-                                            print '+++ 4', m, n, column, 0, v.amount
+                                            #print '+++ 4', m, n, column, 0, v.amount
                                             try:
                                                 total_practical_amount[i][column] += v.amount
                                             except Exception as e:
-                                                print '***', e
+                                                #print '***', e
                                                 if column == 'Asignaciones Municipales y Círculos':
                                                     _column = 'Asignaciones Autonómicas y Municipales'
                                                     total_practical_amount[i][column] += v.amount
@@ -374,11 +373,15 @@ class XLSXWizard(models.TransientModel):
                         cell_range = xl_range(y_start_total+1, x, y-1, x)
                         worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
                         if column == 'SALARIOS':
-                            worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
+                            cell_gastos_planned = xl_rowcol_to_cell(y, 1)
+                            cell_planned = xl_rowcol_to_cell(y, x)
+                            worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_planned, cell_gastos_planned), _superyellow)
                             x += 1
                         cell_range = xl_range(y_start_total+1, x+1, y-1, x+1)
                         worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
                         if column == 'SALARIOS':
+                            cell_gastos_practical = xl_rowcol_to_cell(y, 2)
+                            cell_practical = xl_rowcol_to_cell(y, x+1)
                             worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
                             x += 1
                         x += 2
