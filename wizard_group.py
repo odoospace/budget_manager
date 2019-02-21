@@ -7,7 +7,7 @@ import collections
 from openerp import models, fields, api
 from copy import copy
 from datetime import datetime
-from dateutil import relativedelta
+#from dateutil import relativedelta
 from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
 
 
@@ -49,7 +49,8 @@ class XLSXWizard(models.TransientModel):
         _date_from = self.date_from
         date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
-        months = relativedelta.relativedelta(date_to, date_from).months + 1
+        #months = relativedelta.relativedelta(date_to, date_from).months + 1
+        days = (date_to - date_from).days / 30 # 30 days of standard month
 
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
@@ -368,8 +369,8 @@ class XLSXWizard(models.TransientModel):
                     y += 2
             y += 4
             # phase is important
-            if phase != months:
-                phase = months
+            if phase != days:
+                phase = days
             else:
                 break
         
