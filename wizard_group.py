@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-from openerp import models, fields, api
-from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
-from datetime import datetime
-from copy import copy
-from calendar import monthrange
 import StringIO
 import string
 import xlsxwriter
 import base64
 import collections
+from openerp import models, fields, api
+from copy import copy
+from datetime import datetime
+from dateutil import relativedelta
+from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
+
 
 # TODO: more general use...
 # TODO: translations
@@ -48,13 +49,7 @@ class XLSXWizard(models.TransientModel):
         _date_from = self.date_from
         date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
-        """
-        data = {
-            'Gastos': (0, 0),
-            'Ingresos': (0, 0),
-            'Salarios': (0, 0),
-        }
-        """
+        months = relativedelta.relativedelta(date_to, date_from).months + 1
 
         # Create an new Excel file and add a worksheet
         # https://www.odoo.com/es_ES/forum/ayuda-1/question/return-an-excel-file-to-the-web-client-63980
@@ -213,7 +208,7 @@ class XLSXWizard(models.TransientModel):
                         #print 'k1:', k1, 'k2:', k2, 'k3:', k3
                         # check mapping for level 3
                         for m in MAPPING[3]:
-                            print m, MAPPING[3]
+                            #print m, MAPPING[3]
                             if k3 == m:
                                 column = MAPPING[3][m]
                                 # some name of columns are dynamic
@@ -286,89 +281,97 @@ class XLSXWizard(models.TransientModel):
         # Excel stuff
 
         y = 0
+        phase = 1 # 1 = first run, months = second run
         worksheet.set_column(0, 0, 30)
         worksheet.set_column(1, 1, 20)
-        for category in ['CCE', 'CCA', 'CCM']:
-            # headers
-            if res[category]:
-                x = 0
-                worksheet.merge_range(y, x, y+1, x, category, _silver)
-                x += 1
-                for c in COLUMNS:
-                    if category in c[1]:
-                        column = c[0].decode('utf-8')
-                        if column == 'Salarios':
-                            worksheet.set_column(x, x+3, 12) # 4 colums
-                            worksheet.merge_range(y, x, y, x+3, column.upper(), _silver)
-                        else:
-                            worksheet.set_column(x, x+1, 12) # 2 columns
-                            # change some column names to short ones
-                            if column.startswith('Aportaciones Cargos P'):
-                                # hack
-                                worksheet.merge_range(y, x, y, x+1, 'APORTAC. CARGOS PUB.', _silver)
-                            elif column in COLUMNS_SHORT:
-                                worksheet.merge_range(y, x, y, x+1, COLUMNS_SHORT[column], _silver)
-                            else:
-                                worksheet.merge_range(y, x, y, x+1, column.upper(), _silver)
-                        worksheet.write(y+1, x, 'PRESUP.', _silver)
-                        if column == 'Salarios':
-                            worksheet.write(y+1, x+1, '%', _silver)
-                            x += 1
-                        worksheet.write(y+1, x+1, 'REALES', _silver)
-                        if column == 'Salarios':
-                            worksheet.write(y+1, x+2, '%', _silver)
-                            x += 1
-                        x += 2
-                y += 1
-                y_start_total = y
-                for line in res[category]:
-                    y += 1
+        while True:    
+            for category in ['CCE', 'CCA', 'CCM']:
+                # headers
+                if res[category]:
                     x = 0
-                    worksheet.write(y, x, line)
+                    worksheet.merge_range(y, x, y+1, x, category, _silver)
                     x += 1
                     for c in COLUMNS:
                         if category in c[1]:
-                            column = c[0].decode('utf-8').upper()
-                            if c[2]:
-                                worksheet.write(y, x, res[category][line][c[0]]['planned'], _money)
-                                if column == 'SALARIOS':
-                                    cell_gastos_planned = xl_rowcol_to_cell(y, 1)
-                                    cell_planned = xl_rowcol_to_cell(y, x)
-                                    worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_planned, cell_gastos_planned), _money)
-                                    x += 1
-                                worksheet.write(y, x+1, res[category][line][c[0]]['practical'], c[2])
-                                if column == 'SALARIOS':
-                                    cell_gastos_practical = xl_rowcol_to_cell(y, 2)
-                                    cell_practical = xl_rowcol_to_cell(y, x+1)
-                                    worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), c[2])
-                                    x += 1
+                            column = c[0].decode('utf-8')
+                            if column == 'Salarios':
+                                worksheet.set_column(x, x+3, 12) # 4 colums
+                                worksheet.merge_range(y, x, y, x+3, column.upper(), _silver)
                             else:
-                                # SALARIOS have an color
-                                worksheet.write(y, x, res[category][line][c[0]]['planned'], _money)
-                                worksheet.write(y, x+1, res[category][line][c[0]]['practical'])
+                                worksheet.set_column(x, x+1, 12) # 2 columns
+                                # change some column names to short ones
+                                if column.startswith('Aportaciones Cargos P'):
+                                    # hack
+                                    worksheet.merge_range(y, x, y, x+1, 'APORTAC. CARGOS PUB.', _silver)
+                                elif column in COLUMNS_SHORT:
+                                    worksheet.merge_range(y, x, y, x+1, COLUMNS_SHORT[column], _silver)
+                                else:
+                                    worksheet.merge_range(y, x, y, x+1, column.upper(), _silver)
+                            worksheet.write(y+1, x, 'PRESUP.', _silver)
+                            if column == 'Salarios':
+                                worksheet.write(y+1, x+1, '%', _silver)
+                                x += 1
+                            worksheet.write(y+1, x+1, 'REALES', _silver)
+                            if column == 'Salarios':
+                                worksheet.write(y+1, x+2, '%', _silver)
+                                x += 1
                             x += 2
-                y += 1
-                x = 1
-                worksheet.write(y, 0, 'TOTAL', _yellow)
-                for c in COLUMNS:
-                    if category in c[1]:
-                        column = c[0].decode('utf-8').upper()
-                        cell_range = xl_range(y_start_total+1, x, y-1, x)
-                        worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
-                        if column == 'SALARIOS':
-                            cell_gastos_planned = xl_rowcol_to_cell(y, 1)
-                            cell_planned = xl_rowcol_to_cell(y, x)
-                            worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_planned, cell_gastos_planned), _superyellow)
-                            x += 1
-                        cell_range = xl_range(y_start_total+1, x+1, y-1, x+1)
-                        worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
-                        if column == 'SALARIOS':
-                            cell_gastos_practical = xl_rowcol_to_cell(y, 2)
-                            cell_practical = xl_rowcol_to_cell(y, x+1)
-                            worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
-                            x += 1
-                        x += 2
-                y += 2
+                    y += 1
+                    y_start_total = y
+                    for line in res[category]:
+                        y += 1
+                        x = 0
+                        worksheet.write(y, x, line)
+                        x += 1
+                        for c in COLUMNS:
+                            if category in c[1]:
+                                column = c[0].decode('utf-8').upper()
+                                if c[2]:
+                                    worksheet.write(y, x, res[category][line][c[0]]['planned'] / phase, _money)
+                                    if column == 'SALARIOS':
+                                        cell_gastos_planned = xl_rowcol_to_cell(y, 1)
+                                        cell_planned = xl_rowcol_to_cell(y, x)
+                                        worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_planned, cell_gastos_planned), _money)
+                                        x += 1
+                                    worksheet.write(y, x+1, res[category][line][c[0]]['practical'] / phase, c[2])
+                                    if column == 'SALARIOS':
+                                        cell_gastos_practical = xl_rowcol_to_cell(y, 2)
+                                        cell_practical = xl_rowcol_to_cell(y, x+1)
+                                        worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), c[2])
+                                        x += 1
+                                else:
+                                    # SALARIOS have color
+                                    worksheet.write(y, x, res[category][line][c[0]]['planned'] / phase, _money)
+                                    worksheet.write(y, x+1, res[category][line][c[0]]['practical'] / phase)
+                                x += 2
+                    y += 1
+                    x = 1
+                    worksheet.write(y, 0, 'TOTAL', _yellow)
+                    for c in COLUMNS:
+                        if category in c[1]:
+                            column = c[0].decode('utf-8').upper()
+                            cell_range = xl_range(y_start_total+1, x, y-1, x)
+                            worksheet.write_formula(y, x, '=SUM(%s)' % cell_range, _superyellow)
+                            if column == 'SALARIOS':
+                                cell_gastos_planned = xl_rowcol_to_cell(y, 1)
+                                cell_planned = xl_rowcol_to_cell(y, x)
+                                worksheet.write_formula(y, x+1, '=(%s/%s)*100' % (cell_planned, cell_gastos_planned), _superyellow)
+                                x += 1
+                            cell_range = xl_range(y_start_total+1, x+1, y-1, x+1)
+                            worksheet.write_formula(y, x+1, '=SUM(%s)' % cell_range, _superyellow)
+                            if column == 'SALARIOS':
+                                cell_gastos_practical = xl_rowcol_to_cell(y, 2)
+                                cell_practical = xl_rowcol_to_cell(y, x+1)
+                                worksheet.write_formula(y, x+2, '=(%s/%s)*100' % (cell_practical, cell_gastos_practical), _superyellow)
+                                x += 1
+                            x += 2
+                    y += 2
+            y += 4
+            # phase is important
+            if phase != months:
+                phase = months
+            else:
+                break
         
         workbook.close()
         
