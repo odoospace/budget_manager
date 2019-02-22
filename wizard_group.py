@@ -320,7 +320,8 @@ class XLSXWizard(models.TransientModel):
                             x += 2
                     y += 1
                     y_start_total = y
-                    for line in res[category]:
+
+                    for line in sorted(res[category]):
                         y += 1
                         x = 0
                         worksheet.write(y, x, line)
