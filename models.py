@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from openerp import models, fields, api
+from openerp import models, fields, api, osv, _
 import openerp.addons.decimal_precision as dp
 import calendar
 from datetime import date, datetime
@@ -158,9 +158,65 @@ class crossovered_budget_lines(models.Model):
     budget_manager_line_id = fields.Many2one('budget_manager.line')
     segment_id = fields.Many2one(related='crossovered_budget_id.segment_id', store=True)
     segment = fields.Char(related='crossovered_budget_id.segment', store=True)
+    analytic_line_ids = fields.Many2many('account.analytic.line', compute='_analytic_line_ids', readonly=True)
+    analytic_line_counter = fields.Integer(compute='_analytic_line_counter', default=0, readonly=True, string="Lines")
+
+    @api.one
+    @api.depends('analytic_line_ids')
+    def _analytic_line_counter(self):
+        for obj in self:
+            obj.analytic_line_counter = len(obj.analytic_line_ids)
+            
+
+    @api.one
+    def _analytic_line_ids(self, context=None):
+        res = {}
+        _acc_ids = {}
+        if context is None:
+            context = {}
+        for obj in self:
+            account_obj = self.pool.get('account.account')
+            result = 0.0
+            acc_ids = [x.id for x in obj.general_budget_id.account_ids]
+            if not acc_ids:
+                raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % str(obj.general_budget_id.name))
+            if not str(acc_ids) in _acc_ids:
+                acc_ids_all = account_obj._get_children_and_consol(self._cr, self._uid, acc_ids)
+                _acc_ids[str(acc_ids)] = acc_ids_all
+            else:
+                acc_ids_all = _acc_ids[str(acc_ids)]
+            
+            date_to = obj.date_to
+            date_from = obj.date_from
+            segment_id = obj.segment_id
+            segment_ids = [segment_id.id]
+
+            if obj.analytic_account_id.id:
+                SQL = """
+                SELECT a.id, a.name, a.amount 
+                FROM account_analytic_line as a
+                INNER JOIN account_move_line as l ON l.id = a.move_id
+                INNER JOIN account_move as m ON m.id = l.move_id
+                WHERE a.account_id = %s
+                    AND (a.date between to_date(%s, 'yyyy-mm-dd')
+                        AND to_date(%s, 'yyyy-mm-dd')) 
+                    AND a.general_account_id = ANY(%s)
+                    AND m.segment_id = ANY(%s)
+                """
+                #print SQL, line.analytic_account_id.id, date_from, date_to, acc_ids, segment_ids
+                # TODO: add more lower leves (childs of childs)
+                #analytic_ids = self.pool.get('account.analytic.account').search(cr, uid, [('parent_id', '=', line.analytic_account_id.id)])
+                #analytic_ids += [line.analytic_account_id.id]
+                self.env.cr.execute(SQL, (obj.analytic_account_id.id, date_from, date_to, acc_ids_all, segment_ids))
+                _result = self.env.cr.fetchall()
+                #for i in _result:
+                #    print  i
+                if _result:
+                    self.analytic_line_ids = self.env['account.analytic.line'].browse([i[0] for i in _result])
+                    #self.analytic_line_counter = len(_result)
+        
     
     def _prac_amt(self, cr, uid, ids, context=None):
-        # TODO: remove old segment dependency
         res = {}
         _acc_ids = {}
         if context is None:

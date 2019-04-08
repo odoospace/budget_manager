@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from openerp import models, fields, api
+from openerp import models, fields, api, osv, _
+from openerp.exceptions import except_orm, Warning, RedirectWarning
 from pprint import pprint
 from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
 from datetime import datetime
@@ -77,15 +78,18 @@ class XLSXWizard(models.TransientModel):
         
         _search.append(('segment_id', 'in', segment_ids))
 
-        _anaylitic_lines = self.env['account.analytic.line'].sudo().search(_search)
+        # all lines from the simpler search
+        _analytic_lines = self.env['account.analytic.line'].sudo().search(_search)
+
         analytic_lines = []
         analytic_lines_obj = []
-        for line in _anaylitic_lines:
+        for line in _analytic_lines:
             code0 = line.general_account_id.code[0]
             code1 = line.general_account_id.code[:2]
             if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
                 analytic_lines.append(line.id)
                 analytic_lines_obj.append(line)
+
 
         account_obj = self.pool.get('account.account')
         print 'lines:', len(self.budget_id.crossovered_budget_line)
@@ -93,7 +97,7 @@ class XLSXWizard(models.TransientModel):
             acc_ids = [x.id for x in line.general_budget_id.account_ids]
 
             if not acc_ids:
-                raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % ustr(line.general_budget_id.name))
+                raise osv.except_osv(_('Error!'),_("The Budget '%s' has no accounts!") % str(line.general_budget_id.name))
             #print 'acc_ids/1', len(acc_ids)
             if not str(acc_ids) in _acc_ids:
                 acc_ids_all = account_obj._get_children_and_consol(self._cr, self._uid, acc_ids)
@@ -135,10 +139,9 @@ class XLSXWizard(models.TransientModel):
                         #print 'removed!!!'
                         analytic_lines.remove(res[0])
 
-        #print len(anaylitic_lines)
-        lines = self.env['account.analytic.line'].sudo().search([
-            ('id', 'in', analytic_lines)
-        ])
+        # classify data
+        # print len(anaylitic_lines)
+        lines = self.env['account.analytic.line'].sudo().browse(analytic_lines)
         for l in lines:
             level = l.account_id.level
             if level <= 2:
@@ -175,9 +178,9 @@ class XLSXWizard(models.TransientModel):
         for item in refs:
             if item in X:
                 XX.append(item)
-        
-        return X, XX, groups, analytic_lines, analytic_lines_obj
 
+        return X, XX, groups, analytic_lines, analytic_lines_obj
+        
 
     @api.one
     def run_export_xlsx(self):
@@ -188,6 +191,8 @@ class XLSXWizard(models.TransientModel):
         _date_from = self.date_from
         date_from = datetime.strptime(self.date_from, '%Y-%m-%d').date()
         date_to = datetime.strptime(self.date_to, '%Y-%m-%d').date()
+
+        _analytic_accounts = []
 
         X, XX, groups, analytic_lines, analytic_lines_obj = self.process_data(date_from, date_to)
 
@@ -276,6 +281,9 @@ class XLSXWizard(models.TransientModel):
                             elif ttype == 2:
                                 # from analytic
                                 practical_amount += l.amount
+                                if l.id in _analytic_accounts:
+                                    raise Warning('Warning! Line is computed already: %s - %s -> %s' % (row, column, l.amount))
+                                _analytic_accounts += [l.id] # count it!
                     # TODO: add euros
                     worksheet.write(y, x, planned_amount, _money)
                     worksheet.write(y, x+1, practical_amount, _silver_money)
@@ -324,8 +332,6 @@ class XLSXWizard(models.TransientModel):
         y_total = y
         y += 2
 
-        print '-->', y, x_total-3, x_total-1
-
         # special INCOMING part
         # TODO: refactorize this!
         row = 'Ingresos'
@@ -359,6 +365,9 @@ class XLSXWizard(models.TransientModel):
                     elif ttype == 2:
                         # from analytic
                         practical_amount += l.amount
+                        if l.id in _analytic_accounts:
+                            raise Warning('Warning! Line is computed already: %s - %s -> %s' % (row, column, l.amount))
+                        _analytic_accounts += [l.id]
             # TODO: add euros
             worksheet.write(y, x_total, planned_amount, _money)
             worksheet.write(y, x_total+1, practical_amount, _silver_money)
@@ -423,11 +432,21 @@ class XLSXWizard(models.TransientModel):
         worksheet_lines.set_column(11, 11, 70)
         worksheet_lines.write(y, 11, 'Description', _gray)
         worksheet_lines.set_column(12, 12, 12)
-        worksheet_lines.write(y, 12, 'Amount', _gray)
+        worksheet_lines.write(y, 12, 'Debit', _gray)
+        worksheet_lines.set_column(13, 13, 12)
+        worksheet_lines.write(y, 13, 'Credit', _gray)
+        worksheet_lines.set_column(14, 14, 12)
+        worksheet_lines.write(y, 14, 'Computed', _gray)
+        #worksheet_lines.set_column(15, 15, 12)
+        #worksheet_lines.write(y, 15, 'ID', _gray)
 
 
         worksheet_lines.freeze_panes(1, 0) # freeze first row
         y +=1
+
+        
+        for line in self.budget_id.crossovered_budget_line:
+            _analytic_accounts += [i.id for i in line.analytic_line_ids]
 
         # data
         for line in sorted(analytic_lines_obj, key=lambda x: x.date):
@@ -449,7 +468,17 @@ class XLSXWizard(models.TransientModel):
             worksheet_lines.write(y, 9, line.general_account_id.name)
             worksheet_lines.write(y, 10, line.move_id.partner_id and line.move_id.partner_id.name or '')
             worksheet_lines.write(y, 11, line.name)
-            worksheet_lines.write(y, 12, line.amount, _money)
+            if line.amount > 0:
+                worksheet_lines.write(y, 12, line.amount, _money)
+                worksheet_lines.write(y, 13, 0)
+            elif line.amount < 0:
+                worksheet_lines.write(y, 12, 0)
+                worksheet_lines.write(y, 13, line.amount, _money)
+            else:
+                worksheet_lines.write(y, 12, 0)
+                worksheet_lines.write(y, 13, 0)
+            worksheet_lines.write(y, 14, line.id in _analytic_accounts)
+            #worksheet_lines.write(y, 15, line.id)
             y += 1
 
         # close it

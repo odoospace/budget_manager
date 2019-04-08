@@ -61,6 +61,12 @@
         <field name="priority">6</field>
         <field name="inherit_id" ref="account_budget.crossovered_budget_view_form"/>
         <field name="arch" type="xml">
+            <xpath expr="." position="inside">
+                <link rel="stylesheet" href="/budget_manager/static/src/css/default.css"/>
+            </xpath>
+            <xpath expr="//sheet" position="attributes">
+                <attribute name="class">oe_form_sheet_width_wider</attribute>
+            </xpath>
             <xpath expr="//button[@name='confirm']" position="after">
                 <button name="export_xlsxwizard" type="object" string="Export to XLSX"/>
             </xpath>
@@ -70,7 +76,10 @@
                 <field name="segment"/>
                 <field name="with_children"/>
                 <field name="zero_incoming"/>
-            </xpath> 
+            </xpath>
+            <xpath expr="//page[@string='Budget Lines']/field[@name='crossovered_budget_line']/tree[@string='Budget Lines']/field[@name='percentage']" position="after">
+                <field name="analytic_line_counter"/>
+            </xpath>
             <xpath expr="//page[@string='Budget Lines']" position="after">
               <page string="Budget Lines Manager">
                   <field name="budget_manager_line_ids" colspan="4" nolabel="1" context="{'budget_id': id}" attrs="{'readonly':[('state','!=','draft')]}">
