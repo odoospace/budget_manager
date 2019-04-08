@@ -68,7 +68,7 @@ class XLSXWizard(models.TransientModel):
         _search = [
             ('date', '>=', self.date_from),
             ('date', '<=', self.date_to),
-            #('company_id', '=', self.budget_id.company_id.id)
+            ('company_id', '=', self.budget_id.company_id.id)
         ]
         # first segment
         segment_ids = [self.budget_id.segment_id.id]
@@ -89,9 +89,6 @@ class XLSXWizard(models.TransientModel):
             if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
                 analytic_lines.append(line.id)
                 analytic_lines_obj.append(line)
-
-        
-
 
         account_obj = self.pool.get('account.account')
         print 'lines:', len(self.budget_id.crossovered_budget_line)
