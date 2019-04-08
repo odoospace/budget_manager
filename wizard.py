@@ -3,7 +3,7 @@ from openerp import models, fields, api, osv, _
 from openerp.exceptions import except_orm, Warning, RedirectWarning
 from pprint import pprint
 from xlsxwriter.utility import xl_range, xl_rowcol_to_cell
-from datetime import datetime
+from datetime import datetime, timedelta
 from copy import copy
 from calendar import monthrange
 import StringIO
@@ -68,7 +68,7 @@ class XLSXWizard(models.TransientModel):
         _search = [
             ('date', '>=', self.date_from),
             ('date', '<=', self.date_to),
-            ('company_id', '=', self.budget_id.company_id.id)
+            #('company_id', '=', self.budget_id.company_id.id)
         ]
         # first segment
         segment_ids = [self.budget_id.segment_id.id]
@@ -89,6 +89,8 @@ class XLSXWizard(models.TransientModel):
             if (code0 in ['6', '7'] and code1 != '68') or code1 in ['20', '21']:
                 analytic_lines.append(line.id)
                 analytic_lines_obj.append(line)
+
+        
 
 
         account_obj = self.pool.get('account.account')
@@ -272,6 +274,7 @@ class XLSXWizard(models.TransientModel):
                     practical_amount = 0
                     x = i * 2 + 1
                     if groups[row][line].has_key(column):
+                        #print '>>>', row, column, planned_amount, practical_amount
                         for ttype, l in groups[row][line][column]:
 
                             if ttype == 1:
@@ -456,11 +459,14 @@ class XLSXWizard(models.TransientModel):
                 worksheet_lines.write(y, 2, line.account_id.parent_id.parent_id.name)
                 worksheet_lines.write(y, 3, line.account_id.parent_id.name)
                 worksheet_lines.write(y, 4, line.account_id.name)
+                name_level_1 = line.account_id.parent_id.parent_id.name
             elif line.account_id.parent_id: # level 2
                 worksheet_lines.write(y, 2, line.account_id.parent_id.name)
                 worksheet_lines.write(y, 3, line.account_id.name)
+                name_level_1 = line.account_id.parent_id.name
             else: # level 1
                 worksheet_lines.write(y, 2, line.account_id.name)
+                name_level_1 = line.account_id.name
             worksheet_lines.write(y, 5, line.account_id.segment)
             worksheet_lines.write(y, 6, line.move_id.segment)
             worksheet_lines.write(y, 7, line.move_id.segment_id.name)
@@ -468,15 +474,12 @@ class XLSXWizard(models.TransientModel):
             worksheet_lines.write(y, 9, line.general_account_id.name)
             worksheet_lines.write(y, 10, line.move_id.partner_id and line.move_id.partner_id.name or '')
             worksheet_lines.write(y, 11, line.name)
-            if line.amount > 0:
+            if name_level_1 == 'INGRESOS': # special case
                 worksheet_lines.write(y, 12, line.amount, _money)
                 worksheet_lines.write(y, 13, 0)
-            elif line.amount < 0:
-                worksheet_lines.write(y, 12, 0)
-                worksheet_lines.write(y, 13, line.amount, _money)
             else:
                 worksheet_lines.write(y, 12, 0)
-                worksheet_lines.write(y, 13, 0)
+                worksheet_lines.write(y, 13, line.amount, _money)
             worksheet_lines.write(y, 14, line.id in _analytic_accounts)
             #worksheet_lines.write(y, 15, line.id)
             y += 1
