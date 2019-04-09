@@ -67,14 +67,22 @@ class XLSXWizard(models.TransientModel):
         # get data from analytic to prepare virtual groups
         _search = [
             ('date', '>=', self.date_from),
-            ('date', '<=', self.date_to),
-            ('company_id', '=', self.budget_id.company_id.id)
+            ('date', '<=', self.date_to)
         ]
-        # first segment
+
         segment_ids = [self.budget_id.segment_id.id]
-        
-        if self.budget_id.with_children:
-            segment_ids += self.budget_id.segment_id.segment_tmpl_id.get_childs_ids()
+
+        # check special case - campaigns
+        # no with_children option with campaigns
+        if self.budget_id.segment_id.campaign_id:
+            segment_ids += [i.id for i in self.budget_id.segment_id.campaign_id.segment_ids]
+        else:
+            _search += [('company_id', '=', self.budget_id.company_id.id)]
+            # first segment
+            #segment_ids = [self.budget_id.segment_id.id]
+            
+            if self.budget_id.with_children:
+                segment_ids += self.budget_id.segment_id.segment_tmpl_id.get_childs_ids()
         
         _search.append(('segment_id', 'in', segment_ids))
 
@@ -166,14 +174,14 @@ class XLSXWizard(models.TransientModel):
             groups[group][account_name][first_parent].append((2, l))
 
         # reordered X
-        if not self.budget_id.segment_id.is_campaign:
+        if not self.budget_id.segment_id.campaign_id:
             refs = [
                 'SALARIOS', 'MATERIALES', 'SERVICIOS EXTERNOS',
                 'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS'
             ]
         else:
             refs = ['GASTOS']
-    
+
         for item in refs:
             if item in X:
                 XX.append(item)
