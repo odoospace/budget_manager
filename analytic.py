@@ -25,9 +25,3 @@ class account_analytic_account(models.Model):
         else:
             return self.first_parent(obj.parent_id)
 
-
-class account_analytic_account(models.Model):
-    _inherit = 'account.analytic.line'
-    
-    segment_id = fields.Many2one(related='move_id.segment_id')
-
