@@ -157,6 +157,9 @@ class XLSXWizard(models.TransientModel):
             elif level == 3:
                 group = G[l.account_id.parent_id.group]
                 account_name = l.account_id.parent_id.name
+            elif level == 4:
+                group = G[l.account_id.parent_id.parent_id.group]
+                account_name = l.account_id.parent_id.parent_id.name
             first_parent = l.account_id.first_parent().name
 
             # Matrix
