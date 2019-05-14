@@ -27,16 +27,18 @@ class crossovered_budget(models.Model):
         return res
 
     def _domain_segment(self):
-        # TODO: refactor these 3 functions!!!!
         if self.env.user.id == 1:
-            # no restrictions
             domain = []
         else:
-            return [('id', 'in', [i.id for i in self.env.user.segment_segment_ids])]
+            segment_by_company_open = json.loads(self.env.user.segment_by_company_open)[str(self.env.user.company_id.id)]
+            domain = [('id', 'in', segment_by_company_open)]
+        return domain
 
     def _search_segment_user(self, operator, value):
-        user = self.env['res.users'].browse(value)
-        return [('segment_id', 'in', [i.id for i in user.segment_segment_ids])]
+        user = self.env['res.users'].browse(self.env.context['user'])
+        segment_by_company = json.loads(user.segment_by_company)[str(user.company_id.id)]
+        res = [('segment_id', 'in', segment_by_company)]
+        return res
 
     @api.multi
     def _segment_user_id(self):
@@ -44,9 +46,11 @@ class crossovered_budget(models.Model):
         if self.env.user.id == 1:
             for obj in self:
                 obj.segment_user_id = self.env.uid
+            return
         else:
             for obj in self:
-                if obj.segment_id in self.env.user.segment_segment_ids:
+                segment_by_company = json.loads(self.env.user.segment_by_company)[str(self.env.user.company_id.id)]
+                if obj.segment_id in segment_by_company:
                     obj.segment_user_id = self.env.uid
             return
 
