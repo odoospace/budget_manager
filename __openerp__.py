@@ -27,7 +27,7 @@
         'templates.xml',
     ],
     'css': [
-        'static/src/css/default.cssa'
+        'static/src/css/default.css'
     ],
     # only loaded in demonstration mode
     #'demo': [
