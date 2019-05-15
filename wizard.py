@@ -281,9 +281,19 @@ class XLSXWizard(models.TransientModel):
                     planned_amount = 0
                     practical_amount = 0
                     x = i * 2 + 1
-                    if groups[row][line].has_key(column):
+                    exist_column = False
+                    for j in groups[row][line]:
+                        if column in j:
+                            exist_column = True
+                            value = groups[row][line][column]
+                            break
+                        elif column.title() in j:
+                            exist_column = True
+                            value = groups[row][line][column.title()]
+                            break
+                    if exist_column: #groups[row][line].has_key(column):
                         #print '>>>', row, column, planned_amount, practical_amount
-                        for ttype, l in groups[row][line][column]:
+                        for ttype, l in value:
 
                             if ttype == 1:
                                 # from budget
@@ -428,26 +438,28 @@ class XLSXWizard(models.TransientModel):
         worksheet_lines.write(y, 3, 'Analytic-2', _gray)
         worksheet_lines.set_column(4, 4, 30)
         worksheet_lines.write(y, 4, 'Analytic-3', _gray)
-        worksheet_lines.set_column(5, 5, 15)
-        worksheet_lines.write(y, 5, 'Segment', _gray)
-        worksheet_lines.set_column(6, 6, 14)
-        worksheet_lines.write(y, 6, 'Segment Code', _gray)
+        worksheet_lines.set_column(5, 5, 30)
+        worksheet_lines.write(y, 5, 'Analytic-4', _gray)
+        worksheet_lines.set_column(6, 6, 15)
+        worksheet_lines.write(y, 6, 'Segment', _gray)
         worksheet_lines.set_column(7, 7, 14)
-        worksheet_lines.write(y, 7, 'Segment Name', _gray)
-        worksheet_lines.set_column(8, 8, 40)
-        worksheet_lines.write(y, 8, 'Account Code', _gray)
+        worksheet_lines.write(y, 7, 'Segment Code', _gray)
+        worksheet_lines.set_column(8, 8, 14)
+        worksheet_lines.write(y, 8, 'Segment Name', _gray)
         worksheet_lines.set_column(9, 9, 40)
-        worksheet_lines.write(y, 9, 'Account', _gray)
+        worksheet_lines.write(y, 9, 'Account Code', _gray)
         worksheet_lines.set_column(10, 10, 40)
-        worksheet_lines.write(y, 10, 'Partner', _gray)
-        worksheet_lines.set_column(11, 11, 70)
-        worksheet_lines.write(y, 11, 'Description', _gray)
-        worksheet_lines.set_column(12, 12, 12)
-        worksheet_lines.write(y, 12, 'Debit', _gray)
+        worksheet_lines.write(y, 10, 'Account', _gray)
+        worksheet_lines.set_column(11, 11, 40)
+        worksheet_lines.write(y, 11, 'Partner', _gray)
+        worksheet_lines.set_column(12, 12, 70)
+        worksheet_lines.write(y, 12, 'Description', _gray)
         worksheet_lines.set_column(13, 13, 12)
-        worksheet_lines.write(y, 13, 'Credit', _gray)
+        worksheet_lines.write(y, 13, 'Debit', _gray)
         worksheet_lines.set_column(14, 14, 12)
-        worksheet_lines.write(y, 14, 'Computed', _gray)
+        worksheet_lines.write(y, 14, 'Credit', _gray)
+        worksheet_lines.set_column(15, 15, 12)
+        worksheet_lines.write(y, 15, 'Computed', _gray)
         #worksheet_lines.set_column(15, 15, 12)
         #worksheet_lines.write(y, 15, 'ID', _gray)
 
@@ -463,7 +475,13 @@ class XLSXWizard(models.TransientModel):
         for line in sorted(analytic_lines_obj, key=lambda x: x.date):
             worksheet_lines.write(y, 0, line.date)
             worksheet_lines.write(y, 1, line.move_id.move_id.name)
-            if line.account_id.parent_id.parent_id: # level 3
+            if line.account_id.parent_id.parent_id: # level 4
+                worksheet_lines.write(y, 2, line.account_id.parent_id.parent_id.parent_id.name)
+                worksheet_lines.write(y, 3, line.account_id.parent_id.parent_id.name)
+                worksheet_lines.write(y, 4, line.account_id.parent_id.name)
+                worksheet_lines.write(y, 5, line.account_id.name)
+                name_level_1 = line.account_id.parent_id.parent_id.name
+            elif line.account_id.parent_id.parent_id: # level 3
                 worksheet_lines.write(y, 2, line.account_id.parent_id.parent_id.name)
                 worksheet_lines.write(y, 3, line.account_id.parent_id.name)
                 worksheet_lines.write(y, 4, line.account_id.name)
@@ -475,20 +493,20 @@ class XLSXWizard(models.TransientModel):
             else: # level 1
                 worksheet_lines.write(y, 2, line.account_id.name)
                 name_level_1 = line.account_id.name
-            worksheet_lines.write(y, 5, line.account_id.segment)
-            worksheet_lines.write(y, 6, line.move_id.segment)
-            worksheet_lines.write(y, 7, line.move_id.segment_id.name)
-            worksheet_lines.write(y, 8, line.general_account_id.code)
-            worksheet_lines.write(y, 9, line.general_account_id.name)
-            worksheet_lines.write(y, 10, line.move_id.partner_id and line.move_id.partner_id.name or '')
-            worksheet_lines.write(y, 11, line.name)
+            worksheet_lines.write(y, 6, line.account_id.segment)
+            worksheet_lines.write(y, 7, line.move_id.segment)
+            worksheet_lines.write(y, 8, line.move_id.segment_id.name)
+            worksheet_lines.write(y, 9, line.general_account_id.code)
+            worksheet_lines.write(y, 10, line.general_account_id.name)
+            worksheet_lines.write(y, 11, line.move_id.partner_id and line.move_id.partner_id.name or '')
+            worksheet_lines.write(y, 12, line.name)
             if name_level_1 == 'INGRESOS': # special case
-                worksheet_lines.write(y, 12, line.amount, _money)
-                worksheet_lines.write(y, 13, 0)
-            else:
-                worksheet_lines.write(y, 12, 0)
                 worksheet_lines.write(y, 13, line.amount, _money)
-            worksheet_lines.write(y, 14, line.id in _analytic_accounts)
+                worksheet_lines.write(y, 14, 0)
+            else:
+                worksheet_lines.write(y, 13, 0)
+                worksheet_lines.write(y, 14, line.amount, _money)
+            worksheet_lines.write(y, 15, line.id in _analytic_accounts)
             #worksheet_lines.write(y, 15, line.id)
             y += 1
 
