@@ -475,24 +475,27 @@ class XLSXWizard(models.TransientModel):
         for line in sorted(analytic_lines_obj, key=lambda x: x.date):
             worksheet_lines.write(y, 0, line.date)
             worksheet_lines.write(y, 1, line.move_id.move_id.name)
-            if line.account_id.parent_id.parent_id: # level 4
+            level = line.account_id.level
+            if level == 4:
                 worksheet_lines.write(y, 2, line.account_id.parent_id.parent_id.parent_id.name)
                 worksheet_lines.write(y, 3, line.account_id.parent_id.parent_id.name)
                 worksheet_lines.write(y, 4, line.account_id.parent_id.name)
                 worksheet_lines.write(y, 5, line.account_id.name)
-                name_level_1 = line.account_id.parent_id.parent_id.name
-            elif line.account_id.parent_id.parent_id: # level 3
+                name_level_1 = line.account_id.parent_id.parent_id.parent_id.name
+            elif level == 3:
                 worksheet_lines.write(y, 2, line.account_id.parent_id.parent_id.name)
                 worksheet_lines.write(y, 3, line.account_id.parent_id.name)
                 worksheet_lines.write(y, 4, line.account_id.name)
                 name_level_1 = line.account_id.parent_id.parent_id.name
-            elif line.account_id.parent_id: # level 2
+            elif level == 2:
                 worksheet_lines.write(y, 2, line.account_id.parent_id.name)
                 worksheet_lines.write(y, 3, line.account_id.name)
                 name_level_1 = line.account_id.parent_id.name
-            else: # level 1
+            elif level == 1:
                 worksheet_lines.write(y, 2, line.account_id.name)
                 name_level_1 = line.account_id.name
+            else:
+                print 'LEVEL 0 or > 4!!!'
             worksheet_lines.write(y, 6, line.account_id.segment)
             worksheet_lines.write(y, 7, line.move_id.segment)
             worksheet_lines.write(y, 8, line.move_id.segment_id.name)
