@@ -3,6 +3,7 @@ from openerp import models, fields, api, osv, _
 import openerp.addons.decimal_precision as dp
 import calendar
 from datetime import date, datetime
+import json
 
 class crossovered_budget(models.Model):
     _inherit = 'crossovered.budget'
