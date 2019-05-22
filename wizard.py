@@ -183,7 +183,7 @@ class XLSXWizard(models.TransientModel):
                 'DESPLAZAMIENTOS', 'SUSCRIPCIONES - LICENCIAS', 'OTROS'
             ]
         else:
-            refs = ['GASTOS']
+            refs = ['GASTOS', 'MUNICIPALES']
 
         for item in refs:
             if item in X:
