@@ -142,7 +142,8 @@ class XLSXWizard(models.TransientModel):
                     'ASIGNACIONES AUTONOMICAS': u'Asignaciones Autonómicas y Municipales',
                     'ASIGNACIONES MUNICIPALES': u'Asignaciones Municipales y Círculos',
                     'ASIGNACIONES CIRCULOS': u'Asignaciones Municipales y Círculos',
-                    'PROVISION CONTINGENCIAS': 'Otros-'
+                    'PROVISION CONTINGENCIAS': 'Otros-',
+                    'PROCESOS INTERNOS': 'Otros-'
                 },
                 'Gastos Extraordinarios': {
                     'DESARROLLO PARTICIPA': 'Unidades Funcionales y %s',
